@@ -6,3 +6,6 @@ from app.models.reference import (
     Character, CharacterPersona,
     Department,
 )
+from app.models.comics import (
+    ComicSeries,
+)
