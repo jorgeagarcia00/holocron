@@ -542,8 +542,10 @@ user_preferences
 
 -- 3. Reference / lookup tables
 era
-  id, name, continuity (canon/legends), 
-  in_universe_date_start, in_universe_date_end
+  era
+  id, name, continuity (canon/legends),
+  in_universe_date_start, in_universe_date_end,
+  sort_order (integer),
 
 publisher
   id, name, slug, created_at, updated_at
@@ -583,6 +585,7 @@ role
 ```sql
 comic_series
   id, title, series_type, continuity, era_id,
+  is_timeline_spanning (boolean, default false),
   publisher_id, imprint_id, age_rating,
   start_year, end_year, synopsis,
   created_at, updated_at
@@ -635,6 +638,48 @@ series_membership
 - Era table has separate Canon and Legends eras distinguished by `continuity` field
 - `contribution_log.old_value` and `new_value` stored as JSON diffs
 - `role_name` stored directly on credit record (not a foreign key) because roles are freetext with department-scoped memory, not a fixed controlled vocabulary
+
+### 5.4 Era Reference Data
+**[DECIDED]**
+
+#### Era Table Design Notes
+- `sort_order` integer field controls dropdown display order
+- Chronological eras: multiples of 10 (10, 20, 30...)
+- Non-continuity eras (Visions, Infinities): sort_order = 999
+- Multiple eras handling: `era_id` stores Primary Era + 
+  `is_timeline_spanning` boolean flag on the work record. 
+  No many-to-many at this stage.
+
+#### Canon Eras
+Seed with continuity = 'canon':
+
+| sort_order | Name | Notes |
+|------------|------|-------|
+| 10 | Dawn of the Jedi | Origins of the Force and first Jedi |
+| 20 | The Old Republic | Ancient Republic and Sith Wars |
+| 30 | The High Republic | Golden age of the Jedi, centuries before Ep. I |
+| 40 | Fall of the Jedi | Prequel Trilogy era (Episodes I–III) |
+| 50 | Reign of the Empire | Between Revenge of the Sith and A New Hope |
+| 60 | Age of Rebellion | Original Trilogy era (Episodes IV–VI) |
+| 70 | The New Republic | Post-Empire era (The Mandalorian, Ahsoka) |
+| 80 | Rise of the First Order | Sequel Trilogy era (Episodes VII–IX) |
+| 90 | New Jedi Order | Future era, Rey's reconstruction of the Order |
+| 999 | Visions (Non-Continuity) | Stories not bound by primary Canon timeline |
+
+#### Legends Eras
+Seed with continuity = 'legends':
+
+| sort_order | Name | Approx. Range |
+|------------|------|---------------|
+| 10 | Before the Republic | Up to 25,000 BBY |
+| 20 | The Old Republic | 25,000 BBY – 1,000 BBY |
+| 30 | Rise of the Empire | 1,000 BBY – 0 BBY |
+| 40 | The Rebellion Era | 0 BBY – 5 ABY |
+| 50 | The New Republic | 5 ABY – 25 ABY |
+| 60 | The New Jedi Order | 25 ABY – 40 ABY |
+| 70 | Legacy Era | 40 ABY – 140+ ABY |
+| 999 | Infinities (Non-Continuity) | Parodies and What If scenarios |
+
 
 ---
 
@@ -747,4 +792,4 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 | 13 | Placeholder icon style and Pillar accent colors | Sprint 3 | Claude Design phase |
 | 14 | Issue Credits zone visual distinction from Segment credits | Sprint 3 | Claude Design phase |
 | 15 | Continuity badge visual style | Sprint 3 | Claude Design phase |
-| 16 | Legends era list | Sprint 2 | Use NotebookLM to define |
+| 16 | Legends era list | Sprint 2 | RESOLVED -- see section 5.4 |
