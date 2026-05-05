@@ -1,0 +1,23 @@
+{
+  "name": "holocron",
+  "version": "1.0.0",
+  "description": "Personal Star Wars multimedia archival database — local Flask app, single user.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jorgeagarcia00/holocron.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jorgeagarcia00/holocron/issues"
+  },
+  "homepage": "https://github.com/jorgeagarcia00/holocron#readme",
+  "devDependencies": {
+    "tailwindcss": "^4.2.4"
+  }
+}
