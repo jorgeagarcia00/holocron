@@ -26,8 +26,8 @@ Holocron is a personal, locally-hosted, single-user archival database for tracki
 - Build features marked [TBD] in the PRD without asking the product owner
 
 ## Current Sprint
-Sprint 2 — Comics Pillar: Data
-Reference: docs/Holocron-PRD-v2.md §5.2, §6 Sprint 2
+Sprint 3 — Comics Pillar: UI
+Reference: docs/Holocron-PRD-v2.md §3.2, §6 Sprint 3
 
 ## Conventions Established in Sprint 1
 - Flask app factory variable named `flask_app` (not `app`) inside `create_app()` to avoid collision with `import app.models`
@@ -51,3 +51,23 @@ Built the full Foundation layer. All 7 Sprint 1 items delivered:
 7. Inline creation endpoint: `POST /api/create` for creator/publisher/imprint/character/character_persona, with ContributionLog written atomically on every create
 
 3 migration files applied cleanly. Flask returns 200. All Sprint 1 Definition of Done criteria met.
+
+### Session 2 — 2026-05-05 — Sprint 2 Complete
+Built all 8 Comics Pillar data models. Pre-work: resolved Era code gap (TBD #16 had been closed in PRD but code wasn't updated) — added `sort_order` to Era model, replaced Sprint 1 era names with canonical PRD §5.4 names, seeded all 18 Canon + Legends eras.
+
+Sprint 2 models delivered (all in `app/models/comics.py`):
+1. `ComicSeries` — FKs to era, publisher, imprint; `is_timeline_spanning` flag
+2. `ComicIssue` — `designation` (issue type) + `physical_binding` (format) + `trim_size_custom` for "other" trim
+3. `ExternalLink` — child of ComicIssue; built after Issue before moving to Segments
+4. `ComicSegment` — `reproduction` field default 'original'; `sort_order` always editable
+5. `SegmentRelationship` — self-referencing on comic_segment; `source_of` / `derived_from` backrefs
+6. `Credit` — `segment_id` NULL for product scope, `issue_id` NULL for story scope — exactly one set per row
+7. `CharacterAppearance` — wired deferred FK on `CharacterPersona.first_appearance_segment_id` in same migration
+8. `SeriesMembership` — polymorphic by `entry_type` string (no hard FK); ready for Associative Pillars
+
+Conventions added this session:
+- `seed_all()` now uses `_row_count()` with raw SQL for table count checks — safe to call before migrations run (ORM count queries fail if model columns don't yet exist in DB)
+- SQLite + `batch_alter_table` requires named FK constraints — always name them (e.g. `'fk_persona_first_appearance_segment'`)
+- `SeriesMembership` is intentionally FK-free on `series_id`/`entry_id` — polymorphic join, discriminated by `entry_type`
+
+9 migration files total (4 from Sprint 1 pre-work + Era fix, 8 for Sprint 2 models). All migrations applied cleanly. All 19 tables present.
