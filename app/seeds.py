@@ -1,33 +1,47 @@
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import inspect as sa_inspect, text
 from app.extensions import db
 
 
-CANON_ERAS = [
-    'The Dawn of the Jedi',
-    'The Age of the Republic — High Republic Era',
-    'The Age of the Republic — Fall of the Jedi',
-    'The Age of the Rebellion — Reign of the Empire',
-    'The Age of the Rebellion — Age of Rebellion',
-    'The New Republic Era',
-    'The Rise of the First Order',
-    'The New Jedi Order',
-    'Multiple Eras',
-    'Unknown',
+# (name, continuity, sort_order) — matches PRD §5.4
+ERA_DATA = [
+    ('Dawn of the Jedi',            'canon',   10),
+    ('The Old Republic',            'canon',   20),
+    ('The High Republic',           'canon',   30),
+    ('Fall of the Jedi',            'canon',   40),
+    ('Reign of the Empire',         'canon',   50),
+    ('Age of Rebellion',            'canon',   60),
+    ('The New Republic',            'canon',   70),
+    ('Rise of the First Order',     'canon',   80),
+    ('New Jedi Order',              'canon',   90),
+    ('Visions (Non-Continuity)',    'canon',  999),
+    ('Before the Republic',         'legends', 10),
+    ('The Old Republic',            'legends', 20),
+    ('Rise of the Empire',          'legends', 30),
+    ('The Rebellion Era',           'legends', 40),
+    ('The New Republic',            'legends', 50),
+    ('The New Jedi Order',          'legends', 60),
+    ('Legacy Era',                  'legends', 70),
+    ('Infinities (Non-Continuity)', 'legends', 999),
 ]
 
 COMICS_DEPARTMENTS = [
-    ('Writers',   'comics', 'story'),
-    ('Artists',   'comics', 'story'),
-    ('Editors',   'comics', 'story'),
-    ('Cover',     'comics', 'product'),
-    ('Production','comics', 'product'),
-    ('Lucasfilm', 'comics', 'product'),
+    ('Writers',    'comics', 'story'),
+    ('Artists',    'comics', 'story'),
+    ('Editors',    'comics', 'story'),
+    ('Cover',      'comics', 'product'),
+    ('Production', 'comics', 'product'),
+    ('Lucasfilm',  'comics', 'product'),
 ]
 
 
 def _tables_exist(engine, *names):
     existing = sa_inspect(engine).get_table_names()
     return all(n in existing for n in names)
+
+
+def _row_count(table_name):
+    """Raw SQL count — safe to call before migrations complete."""
+    return db.session.execute(text(f'SELECT COUNT(*) FROM {table_name}')).scalar()
 
 
 def seed_all(flask_app):
@@ -38,18 +52,18 @@ def seed_all(flask_app):
         engine = db.engine
 
         if _tables_exist(engine, 'user_preferences'):
-            if not UserPreferences.query.first():
+            if _row_count('user_preferences') == 0:
                 db.session.add(UserPreferences(continuity_filter='both'))
                 db.session.commit()
 
         if _tables_exist(engine, 'era'):
-            if Era.query.count() == 0:
-                for name in CANON_ERAS:
-                    db.session.add(Era(name=name, continuity='canon'))
+            if _row_count('era') == 0:
+                for name, continuity, sort_order in ERA_DATA:
+                    db.session.add(Era(name=name, continuity=continuity, sort_order=sort_order))
                 db.session.commit()
 
         if _tables_exist(engine, 'department'):
-            if Department.query.count() == 0:
+            if _row_count('department') == 0:
                 for name, pillar, scope in COMICS_DEPARTMENTS:
                     db.session.add(Department(name=name, pillar=pillar, scope=scope))
                 db.session.commit()

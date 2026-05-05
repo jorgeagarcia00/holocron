@@ -14,6 +14,7 @@ class Era(db.Model):
     continuity = db.Column(db.String(10), nullable=False)  # 'canon', 'legends'
     in_universe_date_start = db.Column(db.String(50), nullable=True)
     in_universe_date_end = db.Column(db.String(50), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=True)
 
 
 class Publisher(db.Model):
