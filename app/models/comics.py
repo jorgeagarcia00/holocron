@@ -146,3 +146,21 @@ class Credit(db.Model):
     department = db.relationship('Department', backref='credits')
     issue = db.relationship('ComicIssue', backref='credits',
                             foreign_keys=[issue_id])
+
+
+class CharacterAppearance(db.Model):
+    __tablename__ = 'character_appearance'
+
+    id = db.Column(db.Integer, primary_key=True)
+    segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=False)
+    character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=False)
+    persona_id = db.Column(db.Integer, db.ForeignKey('character_persona.id'), nullable=True)
+    # appearance_type: main, supporting, cameo, vision
+    appearance_type = db.Column(db.String(15), nullable=False)
+    is_uncredited = db.Column(db.Boolean, nullable=False, default=False)
+    archivist_note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+    character = db.relationship('Character', backref='appearances')
+    persona = db.relationship('CharacterPersona', backref='appearances',
+                              foreign_keys=[persona_id])

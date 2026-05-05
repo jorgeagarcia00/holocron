@@ -88,7 +88,7 @@ class CharacterPersona(db.Model):
     slug = db.Column(db.String(100), nullable=False, unique=True)
     baseline_character_id = db.Column(db.Integer, db.ForeignKey('character.id'), nullable=False)
     continuity = db.Column(db.String(10), nullable=False)  # 'canon', 'legends', 'both'
-    first_appearance_segment_id = db.Column(db.Integer, nullable=True)  # FK constraint added Sprint 2
+    first_appearance_segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=True)
     image = db.Column(db.String(255), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
