@@ -12,4 +12,5 @@ from app.models.comics import (
     ExternalLink,
     ComicSegment,
     SegmentRelationship,
+    Credit,
 )

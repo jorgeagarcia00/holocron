@@ -122,3 +122,27 @@ class SegmentRelationship(db.Model):
     reproduction_type = db.Column(db.String(20), nullable=False)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+
+class Credit(db.Model):
+    __tablename__ = 'credit'
+
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey('creator.id'), nullable=False)
+    alias_id = db.Column(db.Integer, db.ForeignKey('creator_alias.id'), nullable=True)
+    # Exactly one of segment_id / issue_id is set; the other is NULL.
+    # segment_id set  → Story Scope (scope = 'story')
+    # issue_id set    → Product Scope (scope = 'product')
+    segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=True)
+    issue_id = db.Column(db.Integer, db.ForeignKey('comic_issue.id'), nullable=True)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    role_name = db.Column(db.String(100), nullable=False)
+    scope = db.Column(db.String(10), nullable=False)  # 'story' or 'product'
+    is_uncredited = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+    creator = db.relationship('Creator', backref='credits')
+    alias = db.relationship('CreatorAlias', backref='credits')
+    department = db.relationship('Department', backref='credits')
+    issue = db.relationship('ComicIssue', backref='credits',
+                            foreign_keys=[issue_id])
