@@ -72,3 +72,28 @@ class ExternalLink(db.Model):
     url = db.Column(db.String(500), nullable=False)
     label = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+
+class ComicSegment(db.Model):
+    __tablename__ = 'comic_segment'
+
+    id = db.Column(db.Integer, primary_key=True)
+    issue_id = db.Column(db.Integer, db.ForeignKey('comic_issue.id'), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False)
+    # segment_type: story, text_story, data_page, illustration, process_art,
+    #               script, introduction, afterword, text_article, letters,
+    #               cover_gallery, recap
+    segment_type = db.Column(db.String(30), nullable=True)
+    # reproduction: original, reprint, remaster, altered, compilation, excerpt
+    reproduction = db.Column(db.String(20), nullable=True, default='original')
+    title = db.Column(db.String(255), nullable=True)
+    # colors: color, black_and_white, color_and_black_and_white
+    colors = db.Column(db.String(30), nullable=True)
+    pages = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
+
+    credits = db.relationship('Credit', backref='segment',
+                              primaryjoin='Credit.segment_id == ComicSegment.id',
+                              lazy='dynamic')
+    appearances = db.relationship('CharacterAppearance', backref='segment', lazy='dynamic')

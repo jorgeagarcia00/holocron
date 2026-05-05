@@ -10,4 +10,5 @@ from app.models.comics import (
     ComicSeries,
     ComicIssue,
     ExternalLink,
+    ComicSegment,
 )
