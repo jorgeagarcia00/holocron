@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Holocron — Foundation{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-yellow-400 mb-1">Holocron</h1>
+  <p class="text-gray-400 mb-8">Personal Star Wars Archive — Foundation Layer</p>
+
+  <h2 class="text-xs uppercase tracking-widest text-gray-500 mb-4">Sprint 1 Progress</h2>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-gray-500 border-b border-gray-800">
+        <th class="pb-2 font-normal">Item</th>
+        <th class="pb-2 font-normal">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-800">
+      <tr>
+        <td class="py-2">Flask app factory + config</td>
+        <td class="py-2 text-green-400">Done</td>
+      </tr>
+      <tr>
+        <td class="py-2">Database + Flask-Migrate</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+      <tr>
+        <td class="py-2">Contribution Log</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+      <tr>
+        <td class="py-2">User Preferences</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+      <tr>
+        <td class="py-2">Reference tables (Era, Publisher, Imprint, Creator, Character, Department)</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+      <tr>
+        <td class="py-2">Fuzzy search endpoint</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+      <tr>
+        <td class="py-2">Inline creation</td>
+        <td class="py-2 text-gray-600">Pending</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

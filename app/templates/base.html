@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" class="bg-gray-950 text-gray-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Holocron{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+</head>
+<body class="min-h-screen">
+
+  <nav class="border-b border-gray-800 px-6 py-3">
+    {# Canon/Legends toggle lives here — Sprint 3 #}
+    <span class="text-yellow-400 font-bold tracking-widest">HOLOCRON</span>
+  </nav>
+
+  <main class="px-6 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>
