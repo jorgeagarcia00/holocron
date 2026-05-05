@@ -9,4 +9,5 @@ from app.models.reference import (
 from app.models.comics import (
     ComicSeries,
     ComicIssue,
+    ExternalLink,
 )

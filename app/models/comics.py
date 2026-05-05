@@ -62,3 +62,13 @@ class ComicIssue(db.Model):
     segments = db.relationship('ComicSegment', backref='issue', lazy='dynamic',
                                order_by='ComicSegment.sort_order')
     external_links = db.relationship('ExternalLink', backref='issue', lazy=True)
+
+
+class ExternalLink(db.Model):
+    __tablename__ = 'external_link'
+
+    id = db.Column(db.Integer, primary_key=True)
+    issue_id = db.Column(db.Integer, db.ForeignKey('comic_issue.id'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    label = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
