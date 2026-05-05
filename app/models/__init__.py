@@ -14,4 +14,5 @@ from app.models.comics import (
     SegmentRelationship,
     Credit,
     CharacterAppearance,
+    SeriesMembership,
 )

@@ -164,3 +164,18 @@ class CharacterAppearance(db.Model):
     character = db.relationship('Character', backref='appearances')
     persona = db.relationship('CharacterPersona', backref='appearances',
                               foreign_keys=[persona_id])
+
+
+class SeriesMembership(db.Model):
+    """Generic join table for Associative Pillars (Film, Books, Audio, Games).
+    entry_type discriminates the pillar so entry_id can reference any future
+    pillar table without a hard FK."""
+    __tablename__ = 'series_membership'
+
+    id = db.Column(db.Integer, primary_key=True)
+    series_id = db.Column(db.Integer, nullable=False)   # FK to pillar-specific series table
+    entry_id = db.Column(db.Integer, nullable=False)    # FK to pillar-specific entry table
+    entry_type = db.Column(db.String(30), nullable=False)  # e.g. 'film', 'book', 'audio', 'game'
+    position = db.Column(db.Integer, nullable=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
