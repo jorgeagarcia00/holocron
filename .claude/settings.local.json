@@ -3,7 +3,11 @@
     "allow": [
       "Bash(.venv/Scripts/python.exe *)",
       "Bash(taskkill /F /IM python.exe)",
-      "Bash(.venv/Scripts/flask.exe db *)"
+      "Bash(.venv/Scripts/flask.exe db *)",
+      "Bash(flask db *)",
+      "Bash(python -c ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
