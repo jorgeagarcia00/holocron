@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(.venv/Scripts/python.exe *)",
-      "Bash(taskkill /F /IM python.exe)"
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(.venv/Scripts/flask.exe db *)"
     ]
   }
 }
