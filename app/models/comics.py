@@ -97,3 +97,28 @@ class ComicSegment(db.Model):
                               primaryjoin='Credit.segment_id == ComicSegment.id',
                               lazy='dynamic')
     appearances = db.relationship('CharacterAppearance', backref='segment', lazy='dynamic')
+    # Relationships for segment provenance chain
+    derived_from = db.relationship(
+        'SegmentRelationship',
+        foreign_keys='SegmentRelationship.derived_segment_id',
+        backref='derived_segment',
+        lazy='dynamic',
+    )
+    source_of = db.relationship(
+        'SegmentRelationship',
+        foreign_keys='SegmentRelationship.source_segment_id',
+        backref='source_segment',
+        lazy='dynamic',
+    )
+
+
+class SegmentRelationship(db.Model):
+    __tablename__ = 'segment_relationship'
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=False)
+    derived_segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=False)
+    # reproduction_type: reprint, remaster, altered, compilation, excerpt
+    reproduction_type = db.Column(db.String(20), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)

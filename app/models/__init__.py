@@ -11,4 +11,5 @@ from app.models.comics import (
     ComicIssue,
     ExternalLink,
     ComicSegment,
+    SegmentRelationship,
 )
