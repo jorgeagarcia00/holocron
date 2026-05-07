@@ -144,8 +144,33 @@
       if (data.id) selectResult(searchId, hiddenId, dropdownId, data.name, data.id);
     }
 
-    // Close any open autocomplete dropdown when clicking outside a widget
+    // Autocomplete: select existing result, create new, or close on outside click
     document.addEventListener('click', function (e) {
+      var result = e.target.closest('.autocomplete-result');
+      if (result) {
+        selectResult(
+          result.dataset.searchId,
+          result.dataset.hiddenId,
+          result.dataset.dropdownId,
+          result.dataset.name,
+          result.dataset.id
+        );
+        return;
+      }
+
+      var create = e.target.closest('.autocomplete-create');
+      if (create) {
+        var name = document.getElementById(create.dataset.searchId).value;
+        createAndSelect(
+          create.dataset.searchId,
+          create.dataset.hiddenId,
+          create.dataset.dropdownId,
+          create.dataset.type,
+          name
+        );
+        return;
+      }
+
       if (!e.target.closest('.autocomplete-widget')) {
         document.querySelectorAll('[id$="-dropdown"]').forEach(function (d) {
           d.innerHTML = '';

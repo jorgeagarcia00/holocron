@@ -2,16 +2,23 @@
 <div class="bg-gray-800 border border-gray-700 border-t-0 rounded-b shadow-xl overflow-hidden">
   {% for r in results %}
   <button type="button"
-    onclick="selectResult('{{ widget }}_q', '{{ widget }}_id', '{{ widget }}-dropdown', {{ r.name | tojson }}, {{ r.id }})"
-    class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors block">
+    class="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors block autocomplete-result"
+    data-search-id="{{ widget }}_q"
+    data-hidden-id="{{ widget }}_id"
+    data-dropdown-id="{{ widget }}-dropdown"
+    data-name="{{ r.name }}"
+    data-id="{{ r.id }}">
     {{ r.name }}
   </button>
   {% endfor %}
   {% if query %}
   <button type="button"
-    onclick="createAndSelect('{{ widget }}_q', '{{ widget }}_id', '{{ widget }}-dropdown', '{{ record_type }}', document.getElementById('{{ widget }}_q').value)"
-    class="w-full text-left px-3 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition-colors block {% if results %}border-t border-gray-700{% endif %}">
-    + Create &ldquo;<span class="font-medium">{{ query }}</span>&rdquo;
+    class="w-full text-left px-3 py-2 text-sm text-yellow-400 hover:bg-gray-700 transition-colors block{% if results %} border-t border-gray-700{% endif %} autocomplete-create"
+    data-search-id="{{ widget }}_q"
+    data-hidden-id="{{ widget }}_id"
+    data-dropdown-id="{{ widget }}-dropdown"
+    data-type="{{ record_type }}">
+    + Create &ldquo;<span class="font-medium pointer-events-none">{{ query }}</span>&rdquo;
   </button>
   {% endif %}
 </div>
