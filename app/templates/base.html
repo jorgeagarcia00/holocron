@@ -6,6 +6,7 @@
   <title>{% block title %}Holocron{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
   <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
+  {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen">
 
@@ -116,6 +117,8 @@
       </div>
     </div>
   </dialog>
+
+  {% block extra_scripts %}{% endblock %}
 
   <script>
     document.getElementById('pillar-modal').addEventListener('click', function (e) {

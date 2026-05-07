@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Add Issue — {{ series.title }} — Holocron{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quill.snow.css') }}">
+<style>
+  /* Restyle Quill snow toolbar to match dark theme */
+  .ql-toolbar.ql-snow {
+    background: #111827;
+    border-color: #374151;
+    border-radius: 4px 4px 0 0;
+  }
+  .ql-container.ql-snow {
+    background: #111827;
+    border-color: #374151;
+    border-radius: 0 0 4px 4px;
+    font-size: 0.875rem;
+    color: #e5e7eb;
+  }
+  .ql-toolbar .ql-stroke { stroke: #9ca3af; }
+  .ql-toolbar .ql-fill  { fill:   #9ca3af; }
+  .ql-toolbar button:hover .ql-stroke,
+  .ql-toolbar button.ql-active .ql-stroke { stroke: #facc15; }
+  .ql-toolbar button:hover .ql-fill,
+  .ql-toolbar button.ql-active .ql-fill   { fill:   #facc15; }
+  .ql-editor.ql-blank::before { color: #4b5563; font-style: normal; }
+  .ql-editor { min-height: 120px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- Page header -->
+  <div class="mb-6">
+    <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">
+      <a href="/comics/series/{{ series.id }}" class="hover:text-gray-300 transition-colors">{{ series.title }}</a>
+      &rsaquo; Add Issue
+    </p>
+    <h1 class="text-xl font-semibold text-gray-100">New Issue</h1>
+  </div>
+
+  <!-- Validation errors -->
+  {% if errors %}
+  <div class="mb-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-sm text-red-300">
+    <ul class="list-disc list-inside space-y-1">
+      {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/comics/series/{{ series.id }}/issues/new"
+        enctype="multipart/form-data">
+
+    <!-- Two-column layout: cover | fields -->
+    <div class="flex gap-8 mb-10">
+
+      <!-- LEFT: Cover image -->
+      <div class="w-48 shrink-0">
+        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Cover</label>
+
+        <div id="cover-area"
+          class="w-full aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden relative ring-1 ring-gray-700 mb-3 flex items-center justify-center">
+          <img id="cover-preview" src="" alt="Cover preview"
+            class="w-full h-full object-cover hidden absolute inset-0">
+          <span id="cover-placeholder" class="text-gray-600 text-xs select-none">No cover</span>
+        </div>
+
+        <label class="block cursor-pointer">
+          <span class="block text-xs text-center text-gray-500 border border-gray-700 rounded px-3 py-1.5
+                       hover:border-gray-500 hover:text-gray-300 transition-colors">
+            Upload image
+          </span>
+          <input type="file" name="cover_image" id="cover-upload"
+            accept=".jpg,.jpeg,.png,.webp,.gif" class="sr-only">
+        </label>
+      </div>
+
+      <!-- RIGHT: All metadata fields -->
+      <div class="flex-1 min-w-0 space-y-4">
+
+        <!-- Row 1: Continuity (static) / Era (static) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Continuity</label>
+            <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none">
+              {{ series.continuity | title }}
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Era</label>
+            <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none truncate">
+              {% if series.is_timeline_spanning %}Multiple Eras
+              {% elif series.era %}{{ series.era.name }}
+              {% else %}—{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Publisher (static) / Imprint (static) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Publisher</label>
+            <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none truncate">
+              {{ series.publisher.name }}
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Imprint</label>
+            <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none truncate">
+              {{ series.imprint.name if series.imprint else '—' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Series (static) / Issue # -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Series</label>
+            <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none truncate">
+              {{ series.title }}
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+              Issue # <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+            </label>
+            <input type="text" name="issue_number" value="{{ form.issue_number or '' }}"
+              placeholder="#1"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+              required autofocus>
+          </div>
+        </div>
+
+        <!-- Row 4: Release Date / Cover Date -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+              Release Date <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+            </label>
+            <input type="date" name="release_date" value="{{ form.release_date or '' }}"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+              required>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+              Cover Date <span class="text-gray-600 normal-case font-normal tracking-normal">optional</span>
+            </label>
+            <input type="date" name="cover_date" value="{{ form.cover_date or '' }}"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          </div>
+        </div>
+
+        <!-- Row 5: Type / Format / Trim Size -->
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+              Type <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+            </label>
+            <select name="designation" id="designation"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+              {% for val, label in designations %}
+              <option value="{{ val }}"
+                {% if (form.designation or 'regular_issue') == val %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+              Format <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+            </label>
+            <select name="physical_binding" id="physical_binding"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+              {% for val, label in bindings %}
+              <option value="{{ val }}"
+                {% if (form.physical_binding or 'comic') == val %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Trim Size</label>
+            <select name="trim_size" id="trim-size"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+              {% for val, label in trim_sizes %}
+              <option value="{{ val }}"
+                {% if (form.trim_size or '') == val %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Trim size custom (shown only when "other" selected) -->
+        <div id="trim-custom-row"
+          class="{% if (form.trim_size or '') != 'other' %}hidden{% endif %}">
+          <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+            Custom Trim Size
+          </label>
+          <input type="text" name="trim_size_custom"
+            value="{{ form.trim_size_custom or '' }}"
+            placeholder="e.g. 8.5 × 11 in"
+            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+        </div>
+
+        <!-- Row 6: Synopsis (Quill rich text) -->
+        <div>
+          <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Synopsis</label>
+          <div id="synopsis-editor"></div>
+          <input type="hidden" name="synopsis" id="synopsis-input"
+            value="{{ form.synopsis or '' }}">
+        </div>
+
+        <!-- Row 7: Pages / Age Rating / Price / UPC-ISBN -->
+        <div class="grid grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Pages</label>
+            <input type="number" name="pages" value="{{ form.pages or '' }}"
+              min="1" max="9999" placeholder="32"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Age Rating</label>
+            <select name="age_rating"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+              {% for val, label in age_ratings %}
+              <option value="{{ val }}"
+                {% if (form.age_rating or '') == val %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Price (USD)</label>
+            <input type="number" name="price" value="{{ form.price or '' }}"
+              min="0" step="0.01" placeholder="3.99"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">UPC / ISBN</label>
+            <input type="text" name="upc_isbn" value="{{ form.upc_isbn or '' }}"
+              placeholder="7 59606 09593 0"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          </div>
+        </div>
+
+        <!-- Row 8: Wookieepedia URL -->
+        <div>
+          <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+            Wookieepedia URL
+          </label>
+          <input type="url" name="wookieepedia_url"
+            value="{{ form.wookieepedia_url or '' }}"
+            placeholder="https://starwars.fandom.com/wiki/…"
+            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+        </div>
+
+        <!-- Additional links -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider">Additional Links</label>
+            <button type="button" onclick="addLink()"
+              class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add link</button>
+          </div>
+          <div id="links-container" class="space-y-2"></div>
+        </div>
+
+      </div><!-- end right column -->
+    </div><!-- end two-column flex -->
+
+    <!-- Story Breakdown (placeholder) -->
+    <div class="border-t border-gray-800 pt-8 mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
+          <p class="text-xs text-gray-600 mt-0.5">Issue Credits + Segment blocks — coming in the next step.</p>
+        </div>
+      </div>
+      <div class="border border-dashed border-gray-800 rounded-lg p-10 text-center">
+        <p class="text-gray-700 text-sm">No segments yet.</p>
+      </div>
+    </div>
+
+    <!-- Form actions -->
+    <div class="flex items-center gap-4 pt-2 border-t border-gray-800">
+      <button type="submit"
+        class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-sm px-6 py-2 rounded transition-colors">
+        Save Issue
+      </button>
+      <a href="/comics/series/{{ series.id }}"
+        class="text-sm text-gray-500 hover:text-gray-300 transition-colors">Cancel</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/quill.min.js') }}"></script>
+<script>
+  // ── Quill rich text editor ──────────────────────────────────────
+  const quill = new Quill('#synopsis-editor', {
+    theme: 'snow',
+    placeholder: 'Series synopsis…',
+    modules: { toolbar: [['bold', 'italic'], [{ list: 'bullet' }]] }
+  });
+
+  const synopsisInput = document.getElementById('synopsis-input');
+  if (synopsisInput.value && synopsisInput.value !== '<p><br></p>') {
+    quill.root.innerHTML = synopsisInput.value;
+  }
+
+  document.querySelector('form').addEventListener('submit', function () {
+    const html = quill.root.innerHTML;
+    synopsisInput.value = (html === '<p><br></p>') ? '' : html;
+  });
+
+  // ── Cover image live preview ────────────────────────────────────
+  document.getElementById('cover-upload').addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const preview = document.getElementById('cover-preview');
+      const placeholder = document.getElementById('cover-placeholder');
+      preview.src = e.target.result;
+      preview.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ── Type → Format smart default ────────────────────────────────
+  const FORMAT_DEFAULTS = {{ format_defaults | tojson }};
+  document.getElementById('designation').addEventListener('change', function () {
+    const def = FORMAT_DEFAULTS[this.value];
+    if (def) document.getElementById('physical_binding').value = def;
+  });
+
+  // ── Trim Size "other" reveals custom field ──────────────────────
+  document.getElementById('trim-size').addEventListener('change', function () {
+    document.getElementById('trim-custom-row').classList.toggle('hidden', this.value !== 'other');
+  });
+
+  // ── Dynamic additional link rows ───────────────────────────────
+  function addLink() {
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    row.innerHTML = `
+      <input type="url" name="link_url" placeholder="https://…"
+        class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
+      <input type="text" name="link_label" placeholder="Label (optional)"
+        class="w-40 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
+      <button type="button" onclick="this.closest('div').remove()"
+        class="text-gray-600 hover:text-gray-300 px-2 text-lg leading-none transition-colors">&times;</button>
+    `;
+    document.getElementById('links-container').appendChild(row);
+  }
+</script>
+{% endblock %}
