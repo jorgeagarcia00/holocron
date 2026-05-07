@@ -133,31 +133,43 @@ def _handle_series_create(initial_continuity):
     is_timeline_spanning = era_id_raw == 'multiple'
     era_id = None if is_timeline_spanning else int(era_id_raw)
 
-    # Resolve publisher — create inline if no ID provided
+    # Resolve publisher — use existing if found, else create
     if pub_id_raw:
         publisher_id = int(pub_id_raw)
     else:
-        pub = Publisher(name=pub_q, slug=make_unique_slug(pub_q, Publisher))
-        db.session.add(pub)
-        db.session.flush()
-        log_contribution('create', 'publisher', pub.id,
-                         new_value={'name': pub.name, 'slug': pub.slug})
-        publisher_id = pub.id
+        existing_pub = Publisher.query.filter(
+            db.func.lower(Publisher.name) == pub_q.lower()
+        ).first()
+        if existing_pub:
+            publisher_id = existing_pub.id
+        else:
+            pub = Publisher(name=pub_q, slug=make_unique_slug(pub_q, Publisher))
+            db.session.add(pub)
+            db.session.flush()
+            log_contribution('create', 'publisher', pub.id,
+                             new_value={'name': pub.name, 'slug': pub.slug})
+            publisher_id = pub.id
 
-    # Resolve imprint — create inline if typed but no ID
+    # Resolve imprint — use existing if found, else create
     imprint_id = None
     if imp_id_raw:
         imprint_id = int(imp_id_raw)
     elif imp_q:
-        imp = Imprint(name=imp_q,
-                      slug=make_unique_slug(imp_q, Imprint),
-                      publisher_id=publisher_id)
-        db.session.add(imp)
-        db.session.flush()
-        log_contribution('create', 'imprint', imp.id,
-                         new_value={'name': imp.name, 'slug': imp.slug,
-                                    'publisher_id': imp.publisher_id})
-        imprint_id = imp.id
+        existing_imp = Imprint.query.filter(
+            db.func.lower(Imprint.name) == imp_q.lower()
+        ).first()
+        if existing_imp:
+            imprint_id = existing_imp.id
+        else:
+            imp = Imprint(name=imp_q,
+                          slug=make_unique_slug(imp_q, Imprint),
+                          publisher_id=publisher_id)
+            db.session.add(imp)
+            db.session.flush()
+            log_contribution('create', 'imprint', imp.id,
+                             new_value={'name': imp.name, 'slug': imp.slug,
+                                        'publisher_id': imp.publisher_id})
+            imprint_id = imp.id
 
     series = ComicSeries(
         title=title,
@@ -234,7 +246,7 @@ def _handle_issue_create(series):
     f = request.form
     errors = []
 
-    issue_number     = f.get('issue_number', '').strip()
+    issue_number     = f.get('issue_number', '').strip().lstrip('#')
     release_date_s   = f.get('release_date', '').strip()
     cover_date_s     = f.get('cover_date', '').strip()
     designation      = f.get('designation', '').strip()

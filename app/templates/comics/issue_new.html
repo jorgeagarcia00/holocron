@@ -123,10 +123,11 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-              Issue # <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+              <span id="issue-number-label">Issue #</span>
+              <span id="issue-number-req" class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
             </label>
-            <input type="text" name="issue_number" value="{{ form.issue_number or '' }}"
-              placeholder="#1"
+            <input type="text" id="issue_number" name="issue_number" value="{{ form.issue_number or '' }}"
+              placeholder="1"
               class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
               required autofocus>
           </div>
