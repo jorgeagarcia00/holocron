@@ -9,10 +9,16 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     from app.models.comics import ComicSeries
-    recent_series = (ComicSeries.query
-                     .order_by(ComicSeries.created_at.desc())
-                     .limit(16)
-                     .all())
+    prefs = UserPreferences.query.first()
+    cf = prefs.continuity_filter if prefs else 'both'
+
+    q = ComicSeries.query
+    if cf == 'canon':
+        q = q.filter(ComicSeries.continuity.in_(['canon', 'both']))
+    elif cf == 'legends':
+        q = q.filter(ComicSeries.continuity.in_(['legends', 'both']))
+
+    recent_series = q.order_by(ComicSeries.created_at.desc()).limit(16).all()
     return render_template('index.html', recent_series=recent_series)
 
 
