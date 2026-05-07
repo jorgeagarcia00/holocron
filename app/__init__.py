@@ -22,4 +22,13 @@ def create_app():
     from app.seeds import seed_all
     seed_all(flask_app)
 
+    @flask_app.context_processor
+    def inject_preferences():
+        try:
+            from app.models.preferences import UserPreferences
+            prefs = UserPreferences.query.first()
+            return {'continuity_filter': prefs.continuity_filter if prefs else 'both'}
+        except Exception:
+            return {'continuity_filter': 'both'}
+
     return flask_app

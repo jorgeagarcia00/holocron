@@ -6,10 +6,21 @@ Holocron is a personal, locally-hosted, single-user archival database for tracki
 ## Tech Stack
 - Backend: Python 3.12, Flask, Flask-SQLAlchemy, Flask-Migrate (Alembic)
 - Database: SQLite — file: data/holocron.db
-- Frontend: Jinja2 templates, Tailwind CSS
+- Frontend: Jinja2 templates, Tailwind CSS v3 (devDependency in package.json)
 - Interactivity: htmx (Sprint 3+)
 - Fuzzy search: rapidfuzz
-- Package management: uv
+- Package management: uv (Python), npm (JS/CSS)
+
+## Tailwind CSS
+Compile command (run from project root):
+```
+npx tailwindcss -i app/static/css/input.css -o app/static/css/output.css
+```
+- Uses Tailwind v3 — `package.json` devDependency, binary available via `npx tailwindcss`
+- Config: `tailwind.config.js` — scans `app/templates/**/*.html`
+- Input: `app/static/css/input.css` — Output: `app/static/css/output.css`
+- Run after any template change that adds new Tailwind classes
+- Note: v4 was originally in package.json but has no CLI binary — replaced with v3
 
 ## Always Do
 - Read docs/Holocron-PRD-v2.md before building any feature

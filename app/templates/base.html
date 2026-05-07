@@ -8,14 +8,119 @@
 </head>
 <body class="min-h-screen">
 
-  <nav class="border-b border-gray-800 px-6 py-3">
-    {# Canon/Legends toggle lives here — Sprint 3 #}
-    <span class="text-yellow-400 font-bold tracking-widest">HOLOCRON</span>
+  <nav class="border-b border-gray-800 px-6 py-3 flex items-center gap-4">
+
+    <!-- Logo -->
+    <a href="/" class="text-yellow-400 font-bold tracking-widest text-sm shrink-0">HOLOCRON</a>
+
+    <!-- Continuity filter toggle -->
+    <form method="POST" action="/preferences/set" class="flex shrink-0 rounded overflow-hidden border border-gray-700 text-xs">
+      <button type="submit" name="continuity_filter" value="canon"
+        class="px-3 py-1.5 transition-colors {% if continuity_filter == 'canon' %}bg-yellow-400 text-gray-950 font-semibold{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800{% endif %}">
+        Canon
+      </button>
+      <button type="submit" name="continuity_filter" value="both"
+        class="px-3 py-1.5 border-x border-gray-700 transition-colors {% if continuity_filter == 'both' %}bg-yellow-400 text-gray-950 font-semibold{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800{% endif %}">
+        Both
+      </button>
+      <button type="submit" name="continuity_filter" value="legends"
+        class="px-3 py-1.5 transition-colors {% if continuity_filter == 'legends' %}bg-yellow-400 text-gray-950 font-semibold{% else %}text-gray-400 hover:text-gray-200 hover:bg-gray-800{% endif %}">
+        Legends
+      </button>
+    </form>
+
+    <!-- Search placeholder (non-functional) -->
+    <div class="flex-1 max-w-xs">
+      <input type="search" placeholder="Search..." disabled
+        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm placeholder-gray-600 cursor-not-allowed">
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- Add New Media -->
+    <button
+      onclick="document.getElementById('pillar-modal').showModal()"
+      class="shrink-0 bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-xs px-4 py-1.5 rounded transition-colors">
+      + Add New Media
+    </button>
+
   </nav>
 
   <main class="px-6 py-8">
     {% block content %}{% endblock %}
   </main>
+
+  <!-- Pillar selection modal -->
+  <dialog id="pillar-modal" class="bg-gray-900 text-gray-100 rounded-xl shadow-2xl w-full max-w-lg p-0 border border-gray-700">
+    <div class="flex flex-col gap-6 p-6">
+
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold tracking-wide text-gray-100">Add New Media</h2>
+        <button onclick="document.getElementById('pillar-modal').close()"
+          class="text-gray-500 hover:text-gray-200 text-lg leading-none transition-colors">&times;</button>
+      </div>
+
+      <div class="grid grid-cols-4 gap-3">
+
+        <!-- Film — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">🎬</span>
+          <span class="text-xs text-gray-300">Film</span>
+        </div>
+
+        <!-- Television — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">📺</span>
+          <span class="text-xs text-gray-300">Television</span>
+        </div>
+
+        <!-- Games — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">🎮</span>
+          <span class="text-xs text-gray-300">Games</span>
+        </div>
+
+        <!-- Books — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">📚</span>
+          <span class="text-xs text-gray-300">Books</span>
+        </div>
+
+        <!-- Audio — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">🎵</span>
+          <span class="text-xs text-gray-300">Audio</span>
+        </div>
+
+        <!-- Comics — ACTIVE -->
+        <a href="/comics/series/new"
+          onclick="document.getElementById('pillar-modal').close()"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg hover:bg-gray-700 hover:ring-1 hover:ring-yellow-400 transition-all">
+          <span class="text-2xl">💬</span>
+          <span class="text-xs text-gray-100 font-medium">Comics</span>
+        </a>
+
+        <!-- Manga — inactive -->
+        <div title="Coming soon"
+          class="flex flex-col items-center gap-2 p-4 bg-gray-800 rounded-lg opacity-40 cursor-not-allowed select-none">
+          <span class="text-2xl">📕</span>
+          <span class="text-xs text-gray-300">Manga</span>
+        </div>
+
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    document.getElementById('pillar-modal').addEventListener('click', function (e) {
+      if (e.target === this) this.close();
+    });
+  </script>
 
 </body>
 </html>
