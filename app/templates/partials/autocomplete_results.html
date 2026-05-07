@@ -1,5 +1,5 @@
 {% if results or query %}
-<div class="absolute left-0 right-0 top-full z-20 bg-gray-800 border border-gray-700 border-t-0 rounded-b shadow-xl overflow-hidden">
+<div class="bg-gray-800 border border-gray-700 border-t-0 rounded-b shadow-xl overflow-hidden">
   {% for r in results %}
   <button type="button"
     onclick="selectResult('{{ widget }}_q', '{{ widget }}_id', '{{ widget }}-dropdown', {{ r.name | tojson }}, {{ r.id }})"

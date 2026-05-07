@@ -97,12 +97,12 @@
           class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
           oninput="document.getElementById('publisher_id').value=''"
           hx-get="/api/autocomplete"
-          hx-trigger="input changed delay:250ms, focus"
+          hx-trigger="input changed delay:250ms"
           hx-target="#publisher-dropdown"
           hx-vals='{"type": "publisher", "widget": "publisher"}'>
         <input type="hidden" name="publisher_id" id="publisher_id"
           value="{{ form.publisher_id or '' }}">
-        <div id="publisher-dropdown" class="relative"></div>
+        <div id="publisher-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
       </div>
     </div>
 
@@ -119,12 +119,12 @@
           class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
           oninput="document.getElementById('imprint_id').value=''"
           hx-get="/api/autocomplete"
-          hx-trigger="input changed delay:250ms, focus"
+          hx-trigger="input changed delay:250ms"
           hx-target="#imprint-dropdown"
           hx-vals='{"type": "imprint", "widget": "imprint"}'>
         <input type="hidden" name="imprint_id" id="imprint_id"
           value="{{ form.imprint_id or '' }}">
-        <div id="imprint-dropdown" class="relative"></div>
+        <div id="imprint-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
       </div>
     </div>
 

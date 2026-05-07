@@ -234,7 +234,15 @@ def autocomplete():
     if not handler:
         return ''
 
-    results = handler(q)[:8]
+    # Get fuzzy results then re-rank: starts-with first, filter noise with threshold 65
+    q_lower = q.lower()
+    all_results = handler(q)
+    starts = [r for r in all_results if r['name'].lower().startswith(q_lower)]
+    others = [r for r in all_results
+              if not r['name'].lower().startswith(q_lower)
+              and fuzz.WRatio(q, r['name']) >= 65]
+    results = (starts + others)[:8]
+
     return render_template('partials/autocomplete_results.html',
                            results=results,
                            query=q,
