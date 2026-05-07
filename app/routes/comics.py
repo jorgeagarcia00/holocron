@@ -20,8 +20,9 @@ comics_bp = Blueprint('comics', __name__)
 ISSUE_DESIGNATIONS = [
     ('regular_issue',     'Regular Issue'),
     ('annual',            'Annual'),
-    ('graphic_novel',     'Graphic Novel'),
+    ('one_shot',          'One-Shot'),
     ('collected_edition', 'Collected Edition'),
+    ('graphic_novel',     'Graphic Novel'),
 ]
 
 PHYSICAL_BINDINGS = [
@@ -52,17 +53,16 @@ AGE_RATINGS = [
 FORMAT_DEFAULTS = {
     'regular_issue':     'comic',
     'annual':            'comic',
-    'graphic_novel':     'hardcover',
+    'one_shot':          'comic',
     'collected_edition': 'paperback',
+    'graphic_novel':     'hardcover',
 }
 
 _COVER_EXTS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 
 SERIES_TYPES = [
     ('regular_series', 'Regular Series'),
-    ('limited_series', 'Limited Series'),
     ('one_shot',       'One-Shot'),
-    ('annual',         'Annual'),
     ('collection',     'Collection'),
     ('graphic_novel',  'Graphic Novel'),
 ]
@@ -202,8 +202,33 @@ def _handle_series_create(initial_continuity):
 
 @comics_bp.route('/comics/series/<int:series_id>')
 def series_hub(series_id):
+    from sqlalchemy import cast, Integer as SAInt
     series = ComicSeries.query.get_or_404(series_id)
-    return render_template('comics/series_hub.html', series=series)
+
+    regular_issues = (series.issues
+                      .filter_by(designation='regular_issue')
+                      .order_by(cast(ComicIssue.issue_number, SAInt),
+                                ComicIssue.release_date)
+                      .all())
+    annuals = (series.issues
+               .filter_by(designation='annual')
+               .order_by(ComicIssue.release_date)
+               .all())
+    one_shots = (series.issues
+                 .filter_by(designation='one_shot')
+                 .order_by(ComicIssue.release_date)
+                 .all())
+    collected = (series.issues
+                 .filter_by(designation='collected_edition')
+                 .order_by(ComicIssue.release_date)
+                 .all())
+
+    return render_template('comics/series_hub.html',
+                           series=series,
+                           regular_issues=regular_issues,
+                           annuals=annuals,
+                           one_shots=one_shots,
+                           collected=collected)
 
 
 # ------------------------------------------------------------------
@@ -221,9 +246,21 @@ def _issue_form_context(series):
     )
 
 
+_TYPE_ALLOWED_DESIGNATIONS = {
+    'regular_series': None,           # None = all designations allowed
+    'one_shot':       {'one_shot'},
+    'collection':     {'collected_edition'},
+    'graphic_novel':  {'graphic_novel'},
+}
+
+
 @comics_bp.route('/comics/series/<int:series_id>/issues/new', methods=['GET', 'POST'])
 def issue_new(series_id):
     series = ComicSeries.query.get_or_404(series_id)
+
+    # One-Shot series may only ever have one issue
+    if series.series_type == 'one_shot' and series.issues.count() >= 1:
+        return redirect(f'/comics/series/{series.id}')
 
     if request.method == 'POST':
         return _handle_issue_create(series)
@@ -264,14 +301,29 @@ def _handle_issue_create(series):
     valid_designations = {v for v, _ in ISSUE_DESIGNATIONS}
     valid_bindings     = {v for v, _ in PHYSICAL_BINDINGS}
 
-    if not issue_number:
-        errors.append('Issue # is required.')
+    # issue_number is optional only for Collected Edition (blank title is valid)
+    if not issue_number and designation != 'collected_edition':
+        label = 'Issue #' if designation == 'regular_issue' else 'Title'
+        errors.append(f'{label} is required.')
     if not release_date_s:
         errors.append('Release Date is required.')
     if designation not in valid_designations:
         errors.append('Issue Type is required.')
     if physical_binding not in valid_bindings:
         errors.append('Format is required.')
+
+    # Validate designation is allowed for this series type
+    if designation in valid_designations:
+        allowed = _TYPE_ALLOWED_DESIGNATIONS.get(series.series_type)
+        if allowed is not None and designation not in allowed:
+            errors.append(
+                f'Issue Type "{designation.replace("_", " ").title()}" is not '
+                f'allowed for {series.series_type.replace("_", " ").title()} series.'
+            )
+
+    # One-Shot series: block second issue
+    if series.series_type == 'one_shot' and series.issues.count() >= 1:
+        errors.append('One-Shot series can only have one issue.')
 
     # Parse dates early so we can report errors
     release_date = None

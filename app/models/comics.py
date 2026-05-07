@@ -12,8 +12,7 @@ class ComicSeries(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     series_type = db.Column(db.String(30), nullable=False)
-    # series_type values: regular_series, limited_series, one_shot,
-    #                     annual, collection, graphic_novel
+    # series_type values: regular_series, one_shot, collection, graphic_novel
     continuity = db.Column(db.String(10), nullable=False)  # canon/legends/both
     era_id = db.Column(db.Integer, db.ForeignKey('era.id'), nullable=True)
     is_timeline_spanning = db.Column(db.Boolean, nullable=False, default=False)

@@ -60,45 +60,127 @@
       {% set count = series.issues.count() %}
       {% if count %}<span class="text-gray-700 ml-2">{{ count }}</span>{% endif %}
     </h2>
+    {% set one_shot_full = series.series_type == 'one_shot' and series.issues.count() >= 1 %}
+    {% if one_shot_full %}
+    <span title="One-Shot series can only have one issue"
+      class="text-xs text-gray-600 border border-gray-800 rounded px-4 py-1.5 cursor-not-allowed">
+      + Add Issue
+    </span>
+    {% else %}
     <a href="/comics/series/{{ series.id }}/issues/new"
       class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-xs px-4 py-1.5 rounded transition-colors">
       + Add Issue
     </a>
+    {% endif %}
   </div>
 
-  {% set issues = series.issues.all() %}
-  {% if issues %}
-  <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
-    {% for issue in issues %}
-    <div class="group block min-w-0">
-      <div class="relative w-full aspect-[2/3] bg-gray-800 rounded overflow-hidden
-                  ring-1 ring-gray-700 group-hover:ring-yellow-400 transition-all mb-1">
-        {% if issue.cover_image %}
-        <img src="{{ url_for('static', filename=issue.cover_image) }}"
-             alt="Issue {{ issue.issue_number }}"
-             class="w-full h-full object-cover">
-        {% else %}
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="text-gray-600 text-xs font-mono">#{{ issue.issue_number }}</span>
-        </div>
-        {% endif %}
+  {#-- Reusable issue card macro --#}
+  {% macro issue_card(issue, label) %}
+  <div class="group block min-w-0">
+    <div class="relative w-full aspect-[2/3] bg-gray-800 rounded overflow-hidden
+                ring-1 ring-gray-700 group-hover:ring-yellow-400 transition-all mb-1">
+      {% if issue.cover_image %}
+      <img src="{{ url_for('static', filename=issue.cover_image) }}"
+           alt="{{ label }}" class="w-full h-full object-cover">
+      {% else %}
+      <div class="absolute inset-0 flex items-center justify-center p-1">
+        <span class="text-gray-600 text-xs font-mono text-center leading-tight">{{ label }}</span>
       </div>
-      <p class="text-xs text-gray-400 font-medium truncate">#{{ issue.issue_number }}</p>
-      {% if issue.release_date %}
-      <p class="text-xs text-gray-600">{{ issue.release_date.strftime('%b %Y') }}</p>
       {% endif %}
     </div>
-    {% endfor %}
+    <p class="text-xs text-gray-400 font-medium truncate">{{ label }}</p>
+    {% if issue.release_date %}
+    <p class="text-xs text-gray-600">{{ issue.release_date.strftime('%b %Y') }}</p>
+    {% endif %}
   </div>
+  {% endmacro %}
 
-  {% else %}
+  {#-- Helper: display label for a collected edition --#}
+  {% macro collected_label(issue) %}
+    {%- if issue.issue_number -%}
+      {{- issue.issue_number -}}
+      {%- if issue.physical_binding == 'paperback' %} TP
+      {%- elif issue.physical_binding == 'hardcover' %} HC
+      {%- elif issue.physical_binding == 'digital' %} (Digital)
+      {%- endif -%}
+    {%- else -%}
+      {%- if issue.physical_binding == 'paperback' %}TP
+      {%- elif issue.physical_binding == 'hardcover' %}HC
+      {%- elif issue.physical_binding == 'digital' %}(Digital)
+      {%- else %}—{%- endif -%}
+    {%- endif -%}
+  {% endmacro %}
+
+  {% set total = series.issues.count() %}
+  {% if total == 0 %}
   <div class="border border-dashed border-gray-800 rounded-lg p-16 text-center">
     <p class="text-gray-600 text-sm mb-3">No issues yet.</p>
+    {% set one_shot_full = series.series_type == 'one_shot' and total >= 1 %}
+    {% if not one_shot_full %}
     <a href="/comics/series/{{ series.id }}/issues/new"
       class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">
       + Add the first issue
     </a>
+    {% endif %}
   </div>
+  {% else %}
+
+  {#-- Section 1: Regular Issues --#}
+  {% if regular_issues %}
+  <div class="mb-8">
+    <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-3">
+      Issues <span class="text-gray-700 ml-1">{{ regular_issues | length }}</span>
+    </h3>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+      {% for issue in regular_issues %}
+        {{ issue_card(issue, '#' ~ issue.issue_number) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {#-- Section 2: Annuals --#}
+  {% if annuals %}
+  <div class="mb-8">
+    <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-3">
+      Annuals <span class="text-gray-700 ml-1">{{ annuals | length }}</span>
+    </h3>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+      {% for issue in annuals %}
+        {{ issue_card(issue, issue.issue_number) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {#-- Section 3: One-Shots --#}
+  {% if one_shots %}
+  <div class="mb-8">
+    <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-3">
+      One-Shots <span class="text-gray-700 ml-1">{{ one_shots | length }}</span>
+    </h3>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+      {% for issue in one_shots %}
+        {{ issue_card(issue, issue.issue_number) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {#-- Section 4: Collected Editions --#}
+  {% if collected %}
+  <div class="mb-8">
+    <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-600 mb-3">
+      Collected Editions <span class="text-gray-700 ml-1">{{ collected | length }}</span>
+    </h3>
+    <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+      {% for issue in collected %}
+        {{ issue_card(issue, collected_label(issue)) }}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   {% endif %}
 
 </div>

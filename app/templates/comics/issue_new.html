@@ -336,9 +336,68 @@
     reader.readAsDataURL(file);
   });
 
+  // ── Series Type → allowed Issue Types ──────────────────────────
+  const SERIES_TYPE = {{ series.series_type | tojson }};
+  const ALLOWED_DESIGNATIONS = {
+    regular_series: null,
+    one_shot:       ['one_shot'],
+    collection:     ['collected_edition'],
+    graphic_novel:  ['graphic_novel'],
+  };
+  (function filterDesignations() {
+    const allowed = ALLOWED_DESIGNATIONS[SERIES_TYPE];
+    if (!allowed) return;
+    const sel = document.getElementById('designation');
+    for (const opt of sel.options) {
+      opt.disabled = !allowed.includes(opt.value);
+      opt.hidden   = !allowed.includes(opt.value);
+    }
+    if (!allowed.includes(sel.value)) {
+      sel.value = allowed[0];
+      sel.dispatchEvent(new Event('change'));
+    }
+  })();
+
+  // ── Issue # label + placeholder changes with Type ──────────────
+  const ISSUE_LABEL = {
+    regular_issue:     'Issue #',
+    annual:            'Annual',
+    one_shot:          'Title',
+    collected_edition: 'Title',
+    graphic_novel:     'Title',
+  };
+  const ISSUE_PLACEHOLDER = {
+    regular_issue:     '1',
+    annual:            '2025 Annual',
+    one_shot:          '',
+    collected_edition: '',
+    graphic_novel:     '',
+  };
+  const ISSUE_REQUIRED = ['regular_issue', 'annual', 'one_shot', 'graphic_novel'];
+
+  function updateIssueNumberField(type) {
+    document.getElementById('issue-number-label').textContent = ISSUE_LABEL[type] || 'Issue #';
+    const input = document.getElementById('issue_number');
+    input.placeholder = ISSUE_PLACEHOLDER[type] || '';
+    const isRequired = ISSUE_REQUIRED.includes(type);
+    const reqSpan = document.getElementById('issue-number-req');
+    reqSpan.textContent = isRequired ? 'required' : 'optional';
+    reqSpan.className = isRequired
+      ? 'text-yellow-400 normal-case font-normal tracking-normal'
+      : 'text-gray-600 normal-case font-normal tracking-normal';
+    if (isRequired) { input.setAttribute('required', ''); }
+    else             { input.removeAttribute('required'); }
+  }
+
+  // Run on load with current value
+  updateIssueNumberField(document.getElementById('designation').value);
+
   // ── Type → Format smart default ────────────────────────────────
   const FORMAT_DEFAULTS = {{ format_defaults | tojson }};
+
+  // Single change handler for designation — label + format default
   document.getElementById('designation').addEventListener('change', function () {
+    updateIssueNumberField(this.value);
     const def = FORMAT_DEFAULTS[this.value];
     if (def) document.getElementById('physical_binding').value = def;
   });
