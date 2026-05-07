@@ -145,9 +145,9 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-              Cover Date <span class="text-gray-600 normal-case font-normal tracking-normal">optional</span>
+              Cover Date <span class="text-gray-600 normal-case font-normal tracking-normal">month &amp; year only</span>
             </label>
-            <input type="date" name="cover_date" value="{{ form.cover_date or '' }}"
+            <input type="month" name="cover_date" value="{{ form.cover_date or '' }}"
               class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
           </div>
         </div>
@@ -358,6 +358,24 @@
     }
   })();
 
+  // ── Format filtering by Series Type ─────────────────────────────
+  const BINDING_ALLOWED = {
+    collection:    ['paperback', 'hardcover', 'digital'],
+    graphic_novel: ['paperback', 'hardcover', 'digital'],
+  };
+  (function filterFormats() {
+    const allowed = BINDING_ALLOWED[SERIES_TYPE];
+    if (!allowed) return;
+    const sel = document.getElementById('physical_binding');
+    for (const opt of sel.options) {
+      opt.disabled = !allowed.includes(opt.value);
+      opt.hidden   = !allowed.includes(opt.value);
+    }
+    if (!allowed.includes(sel.value)) {
+      sel.value = allowed[0];
+    }
+  })();
+
   // ── Issue # label + placeholder changes with Type ──────────────
   const ISSUE_LABEL = {
     regular_issue:     'Issue #',
@@ -373,7 +391,7 @@
     collected_edition: '',
     graphic_novel:     '',
   };
-  const ISSUE_REQUIRED = ['regular_issue', 'annual', 'one_shot', 'graphic_novel'];
+  const ISSUE_REQUIRED = ['regular_issue', 'annual', 'graphic_novel'];
 
   function updateIssueNumberField(type) {
     document.getElementById('issue-number-label').textContent = ISSUE_LABEL[type] || 'Issue #';

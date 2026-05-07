@@ -301,8 +301,9 @@ def _handle_issue_create(series):
     valid_designations = {v for v, _ in ISSUE_DESIGNATIONS}
     valid_bindings     = {v for v, _ in PHYSICAL_BINDINGS}
 
-    # issue_number is optional only for Collected Edition (blank title is valid)
-    if not issue_number and designation != 'collected_edition':
+    # issue_number optional for Collected Edition and One-Shot (series title suffices)
+    optional_number = {'collected_edition', 'one_shot'}
+    if not issue_number and designation not in optional_number:
         label = 'Issue #' if designation == 'regular_issue' else 'Title'
         errors.append(f'{label} is required.')
     if not release_date_s:
@@ -321,6 +322,18 @@ def _handle_issue_create(series):
                 f'allowed for {series.series_type.replace("_", " ").title()} series.'
             )
 
+    # Validate format is allowed for this series type
+    _BINDING_BLOCKED = {
+        'collection':    {'comic'},
+        'graphic_novel': {'comic'},
+    }
+    blocked_bindings = _BINDING_BLOCKED.get(series.series_type, set())
+    if physical_binding in blocked_bindings:
+        errors.append(
+            f'Format "Comic" is not valid for '
+            f'{series.series_type.replace("_", " ").title()} series.'
+        )
+
     # One-Shot series: block second issue
     if series.series_type == 'one_shot' and series.issues.count() >= 1:
         errors.append('One-Shot series can only have one issue.')
@@ -336,8 +349,13 @@ def _handle_issue_create(series):
     cover_date = None
     if cover_date_s:
         try:
-            cover_date = date.fromisoformat(cover_date_s)
-        except ValueError:
+            # month input sends "YYYY-MM" — store as 1st of that month
+            if len(cover_date_s) == 7:
+                year, month = cover_date_s.split('-')
+                cover_date = date(int(year), int(month), 1)
+            else:
+                cover_date = date.fromisoformat(cover_date_s)
+        except (ValueError, TypeError):
             pass  # silently ignore bad cover date
 
     if errors:

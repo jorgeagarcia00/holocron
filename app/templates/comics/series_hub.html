@@ -88,27 +88,13 @@
       </div>
       {% endif %}
     </div>
-    <p class="text-xs text-gray-400 font-medium truncate">{{ label }}</p>
+    <p class="text-xs text-gray-400 font-medium truncate" title="{{ label }}">{{ label }}</p>
     {% if issue.release_date %}
-    <p class="text-xs text-gray-600">{{ issue.release_date.strftime('%b %Y') }}</p>
+    <p class="text-xs text-gray-600 uppercase tracking-wide">
+      {{ issue.release_date.strftime('%b') }} {{ issue.release_date.day }}, {{ issue.release_date.year }}
+    </p>
     {% endif %}
   </div>
-  {% endmacro %}
-
-  {#-- Helper: display label for a collected edition --#}
-  {% macro collected_label(issue) %}
-    {%- if issue.issue_number -%}
-      {{- issue.issue_number -}}
-      {%- if issue.physical_binding == 'paperback' %} TP
-      {%- elif issue.physical_binding == 'hardcover' %} HC
-      {%- elif issue.physical_binding == 'digital' %} (Digital)
-      {%- endif -%}
-    {%- else -%}
-      {%- if issue.physical_binding == 'paperback' %}TP
-      {%- elif issue.physical_binding == 'hardcover' %}HC
-      {%- elif issue.physical_binding == 'digital' %}(Digital)
-      {%- else %}—{%- endif -%}
-    {%- endif -%}
   {% endmacro %}
 
   {% set total = series.issues.count() %}
@@ -133,7 +119,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in regular_issues %}
-        {{ issue_card(issue, '#' ~ issue.issue_number) }}
+        {{ issue_card(issue, series.title ~ ' #' ~ issue.issue_number) }}
       {% endfor %}
     </div>
   </div>
@@ -147,7 +133,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in annuals %}
-        {{ issue_card(issue, issue.issue_number) }}
+        {{ issue_card(issue, series.title ~ ' ' ~ issue.issue_number) }}
       {% endfor %}
     </div>
   </div>
@@ -161,7 +147,12 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in one_shots %}
-        {{ issue_card(issue, issue.issue_number) }}
+        {% if issue.issue_number %}
+          {% set label = series.title ~ ' — ' ~ issue.issue_number %}
+        {% else %}
+          {% set label = series.title %}
+        {% endif %}
+        {{ issue_card(issue, label) }}
       {% endfor %}
     </div>
   </div>
@@ -175,7 +166,20 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in collected %}
-        {{ issue_card(issue, collected_label(issue)) }}
+        {%- if issue.issue_number %}
+          {%- set suffix = ' TP' if issue.physical_binding == 'paperback'
+                      else ' HC' if issue.physical_binding == 'hardcover'
+                      else ' (Digital)' if issue.physical_binding == 'digital'
+                      else '' %}
+          {%- set label = series.title ~ ' — ' ~ issue.issue_number ~ suffix %}
+        {%- else %}
+          {%- set suffix = ' TP' if issue.physical_binding == 'paperback'
+                      else ' HC' if issue.physical_binding == 'hardcover'
+                      else ' (Digital)' if issue.physical_binding == 'digital'
+                      else '' %}
+          {%- set label = series.title ~ suffix %}
+        {%- endif %}
+        {{ issue_card(issue, label) }}
       {% endfor %}
     </div>
   </div>
