@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}New Comic Series — Holocron{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- Page header -->
+  <div class="mb-8">
+    <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Comics</p>
+    <h1 class="text-xl font-semibold text-gray-100">New Series</h1>
+  </div>
+
+  <!-- Validation errors -->
+  {% if errors %}
+  <div class="mb-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-sm text-red-300">
+    <ul class="list-disc list-inside space-y-1">
+      {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="/comics/series/new" class="space-y-6">
+
+    <!-- Title -->
+    <div>
+      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+        Title <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+      </label>
+      <input type="text" name="title" value="{{ form.title or '' }}"
+        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+        required autofocus>
+    </div>
+
+    <!-- Series Type -->
+    <div>
+      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+        Series Type <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+      </label>
+      <select name="series_type"
+        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+        {% for val, label in series_types %}
+        <option value="{{ val }}" {% if (form.series_type or 'regular_series') == val %}selected{% endif %}>
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Continuity + Era -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+          Continuity <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+        </label>
+        <select name="continuity" id="continuity-select"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+          hx-get="/api/eras-options"
+          hx-trigger="change"
+          hx-target="#era-select">
+          {% set sel_continuity = form.continuity or initial_continuity %}
+          <option value="canon"   {% if sel_continuity == 'canon'   %}selected{% endif %}>Canon</option>
+          <option value="legends" {% if sel_continuity == 'legends' %}selected{% endif %}>Legends</option>
+          <option value="both"    {% if sel_continuity == 'both'    %}selected{% endif %}>Both</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+          Era <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+        </label>
+        <select name="era_id" id="era-select"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          <option value="">Select era…</option>
+          {% for era in eras %}
+          <option value="{{ era.id }}"
+            {% if (form.era_id or '') == era.id | string %}selected{% endif %}>
+            {{ era.name }}
+            {% if (form.continuity or initial_continuity) == 'both' %}({{ era.continuity | title }}){% endif %}
+          </option>
+          {% endfor %}
+          <option value="multiple" {% if (form.era_id or '') == 'multiple' %}selected{% endif %}>
+            Multiple Eras
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Publisher -->
+    <div>
+      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+        Publisher <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+      </label>
+      <div class="autocomplete-widget relative">
+        <input type="text" id="publisher_q" name="publisher_q"
+          value="{{ form.publisher_q or '' }}"
+          placeholder="Search or type to create…"
+          autocomplete="off"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+          hx-get="/api/autocomplete"
+          hx-trigger="input changed delay:250ms, focus"
+          hx-target="#publisher-dropdown"
+          hx-vals='{"type": "publisher", "widget": "publisher"}'>
+        <input type="hidden" name="publisher_id" id="publisher_id"
+          value="{{ form.publisher_id or '' }}">
+        <div id="publisher-dropdown" class="relative"></div>
+      </div>
+    </div>
+
+    <!-- Imprint -->
+    <div>
+      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+        Imprint <span class="text-gray-600 normal-case font-normal tracking-normal">optional</span>
+      </label>
+      <div class="autocomplete-widget relative">
+        <input type="text" id="imprint_q" name="imprint_q"
+          value="{{ form.imprint_q or '' }}"
+          placeholder="Search or type to create…"
+          autocomplete="off"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+          hx-get="/api/autocomplete"
+          hx-trigger="input changed delay:250ms, focus"
+          hx-target="#imprint-dropdown"
+          hx-vals='{"type": "imprint", "widget": "imprint"}'>
+        <input type="hidden" name="imprint_id" id="imprint_id"
+          value="{{ form.imprint_id or '' }}">
+        <div id="imprint-dropdown" class="relative"></div>
+      </div>
+    </div>
+
+    <!-- Start Year / End Year -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+          Start Year
+        </label>
+        <input type="number" name="start_year" value="{{ form.start_year or '' }}"
+          min="1961" max="2099" placeholder="e.g. 2015"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+          End Year <span class="text-gray-600 normal-case font-normal tracking-normal">blank if ongoing</span>
+        </label>
+        <input type="number" name="end_year" value="{{ form.end_year or '' }}"
+          min="1961" max="2099" placeholder="e.g. 2017"
+          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+      </div>
+    </div>
+
+    <!-- Synopsis -->
+    <div>
+      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Synopsis</label>
+      <textarea name="synopsis" rows="4"
+        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors resize-y">{{ form.synopsis or '' }}</textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-4 pt-2 border-t border-gray-800">
+      <button type="submit"
+        class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-sm px-6 py-2 rounded transition-colors">
+        Create Series
+      </button>
+      <a href="/" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">Cancel</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

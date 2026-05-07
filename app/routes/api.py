@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from rapidfuzz import fuzz, process
 
 from app.extensions import db
@@ -207,3 +207,52 @@ def _create_character_persona(body):
     return {'id': record.id, 'name': record.persona_name,
             'slug': record.slug,
             'baseline_character_id': record.baseline_character_id}, None
+
+
+# ---------------------------------------------------------------------------
+# htmx autocomplete (returns HTML fragment)
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/autocomplete')
+def autocomplete():
+    record_type = request.args.get('type', '')
+    widget = request.args.get('widget', record_type)
+    # htmx sends the triggering input's value under its own name (e.g. publisher_q)
+    q = (request.args.get('q') or request.args.get(f'{widget}_q', '')).strip()
+
+    if not q or not record_type:
+        return ''
+
+    handlers = {
+        'publisher':         _search_publisher,
+        'imprint':           _search_imprint,
+        'creator':           _search_creator,
+        'character':         _search_character,
+        'character_persona': _search_character_persona,
+    }
+    handler = handlers.get(record_type)
+    if not handler:
+        return ''
+
+    results = handler(q)[:8]
+    return render_template('partials/autocomplete_results.html',
+                           results=results,
+                           query=q,
+                           record_type=record_type,
+                           widget=widget)
+
+
+# ---------------------------------------------------------------------------
+# Era options for continuity-filtered dropdown (returns HTML <option> elements)
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/eras-options')
+def eras_options():
+    continuity = request.args.get('continuity', 'both')
+    if continuity == 'both':
+        eras = Era.query.order_by(Era.continuity, Era.sort_order).all()
+    else:
+        eras = Era.query.filter_by(continuity=continuity).order_by(Era.sort_order).all()
+    return render_template('partials/era_options.html',
+                           eras=eras,
+                           show_continuity=(continuity == 'both'))

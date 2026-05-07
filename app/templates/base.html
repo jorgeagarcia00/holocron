@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Holocron{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+  <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
 </head>
 <body class="min-h-screen">
 
@@ -119,6 +120,34 @@
   <script>
     document.getElementById('pillar-modal').addEventListener('click', function (e) {
       if (e.target === this) this.close();
+    });
+
+    // Autocomplete helpers — used by partials/autocomplete_results.html
+    function selectResult(searchId, hiddenId, dropdownId, name, id) {
+      document.getElementById(searchId).value = name;
+      document.getElementById(hiddenId).value = id;
+      document.getElementById(dropdownId).innerHTML = '';
+    }
+
+    async function createAndSelect(searchId, hiddenId, dropdownId, type, name) {
+      if (!name || !name.trim()) return;
+      const resp = await fetch('/api/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type, name: name.trim() })
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.id) selectResult(searchId, hiddenId, dropdownId, data.name, data.id);
+    }
+
+    // Close any open autocomplete dropdown when clicking outside a widget
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.autocomplete-widget')) {
+        document.querySelectorAll('[id$="-dropdown"]').forEach(function (d) {
+          d.innerHTML = '';
+        });
+      }
     });
   </script>
 

@@ -16,8 +16,10 @@ def create_app():
 
     from app.routes.main import main_bp
     from app.routes.api import api_bp
+    from app.routes.comics import comics_bp
     flask_app.register_blueprint(main_bp)
     flask_app.register_blueprint(api_bp)
+    flask_app.register_blueprint(comics_bp)
 
     from app.seeds import seed_all
     seed_all(flask_app)
