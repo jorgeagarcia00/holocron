@@ -1,49 +1,67 @@
 {% extends "base.html" %}
-{% block title %}Holocron — Foundation{% endblock %}
+{% block title %}Holocron{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-  <h1 class="text-2xl font-bold text-yellow-400 mb-1">Holocron</h1>
-  <p class="text-gray-400 mb-8">Personal Star Wars Archive — Foundation Layer</p>
+<div class="max-w-6xl mx-auto">
 
-  <h2 class="text-xs uppercase tracking-widest text-gray-500 mb-4">Sprint 1 Progress</h2>
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-left text-gray-500 border-b border-gray-800">
-        <th class="pb-2 font-normal">Item</th>
-        <th class="pb-2 font-normal">Status</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-800">
-      <tr>
-        <td class="py-2">Flask app factory + config</td>
-        <td class="py-2 text-green-400">Done</td>
-      </tr>
-      <tr>
-        <td class="py-2">Database + Flask-Migrate</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-      <tr>
-        <td class="py-2">Contribution Log</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-      <tr>
-        <td class="py-2">User Preferences</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-      <tr>
-        <td class="py-2">Reference tables (Era, Publisher, Imprint, Creator, Character, Department)</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-      <tr>
-        <td class="py-2">Fuzzy search endpoint</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-      <tr>
-        <td class="py-2">Inline creation</td>
-        <td class="py-2 text-gray-600">Pending</td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Recently Added -->
+  <section>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-5">Recently Added</h2>
+
+    {% if recent_series %}
+    <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
+      {% for series in recent_series %}
+      <a href="/comics/series/{{ series.id }}" class="group block min-w-0">
+
+        <!-- Poster -->
+        <div class="relative w-full aspect-[2/3] bg-gray-800 rounded overflow-hidden mb-2 ring-1 ring-gray-700 group-hover:ring-yellow-400 transition-all">
+
+          {% if series.issues.first() and series.issues.first().cover_image %}
+            <img src="{{ series.issues.first().cover_image }}"
+                 alt="{{ series.title }}"
+                 class="w-full h-full object-cover">
+          {% else %}
+            <!-- Placeholder until Issue #1 has a cover -->
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-3xl opacity-20">💬</span>
+            </div>
+          {% endif %}
+
+          <!-- Issue count badge — bottom-right corner of poster -->
+          <div class="absolute bottom-0 right-0 bg-gray-900/90 text-gray-400 text-xs font-mono
+                      w-6 h-6 flex items-center justify-center leading-none">
+            {{ series.issues.count() }}
+          </div>
+
+        </div>
+
+        <!-- Metadata below poster -->
+        <p class="text-xs text-gray-100 font-medium leading-snug group-hover:text-yellow-400 transition-colors truncate">
+          {{ series.title }}
+        </p>
+        <p class="text-xs text-gray-500 truncate mt-0.5">
+          {{ series.publisher.name }}
+          {% if series.start_year %}
+            &middot; {{ series.start_year }}{% if series.end_year %}–{{ series.end_year }}{% endif %}
+          {% endif %}
+        </p>
+
+      </a>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Empty state -->
+    <div class="border border-dashed border-gray-800 rounded-lg p-16 text-center">
+      <p class="text-gray-600 text-sm mb-4">Your archive is empty.</p>
+      <button onclick="document.getElementById('pillar-modal').showModal()"
+        class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">
+        + Add your first entry
+      </button>
+    </div>
+    {% endif %}
+
+  </section>
+
 </div>
 {% endblock %}

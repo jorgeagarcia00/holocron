@@ -8,7 +8,12 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    return render_template('index.html')
+    from app.models.comics import ComicSeries
+    recent_series = (ComicSeries.query
+                     .order_by(ComicSeries.created_at.desc())
+                     .limit(16)
+                     .all())
+    return render_template('index.html', recent_series=recent_series)
 
 
 @main_bp.route('/preferences/set', methods=['POST'])
