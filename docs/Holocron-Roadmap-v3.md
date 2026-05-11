@@ -310,6 +310,10 @@ Verify files appear on GitHub.
 
 **Phase 4 complete when:** Project folder exists, venv active, packages installed, 4 skills installed, docs/ folder with all documents, CLAUDE.md written, Claude Project created with documents uploaded, first commit pushed.
 
+Note: Tailwind v4 installed by default breaks npx tailwindcss init. 
+Use npx tailwindcss@3 to compile:
+npx tailwindcss@3 -i app/static/css/input.css -o app/static/css/output.css
+
 ---
 
 ## Phase 5 — Day-to-Day Workflow
@@ -327,6 +331,10 @@ Say to Claude Code:
 Read CLAUDE.md and docs/Holocron-PRD-v2.md.
 Tell me the current state of the project before we start.
 ```
+
+SQLite note: always name FK constraints in migrations — 
+batch_alter_table crashes on unnamed constraints. 
+Claude Code handles this automatically if reminded.
 
 Open `localhost:5000` in browser.
 
@@ -399,11 +407,9 @@ Paste summary at bottom of CLAUDE.md with today's date.
 
 ## Sprint Overview
 
-| Sprint | Goal | Blocking TBDs |
-|--------|------|---------------|
-| 1 | Foundation — Flask, DB, audit log, reference tables | None |
-| 2 | Comics data models | Legends era list (TBD #16) |
-| 3 | Comics UI — all forms and pages | Work-level credit taxonomy (TBD #1), Navigation structure (TBD #7) |
+| 1 | Foundation — Flask, DB, audit log, reference tables | ✓ Complete |
+| 2 | Comics data models | ✓ Complete |
+| 3 | Comics UI — all forms and pages | Navigation structure (TBD #7) — TBD #1 and #16 resolved |
 | 4 | Creator, Publisher, Character pages | None |
 | 5 | Television Pillar | TV metadata spec (TBD #11) |
 | 6+ | Remaining Pillars, cross-pillar features | Per-Pillar specs |
@@ -472,9 +478,7 @@ These must be resolved before Sprint 3 starts. They don't block Sprint 1 or 2.
 
 | Decision | What's needed | How to resolve |
 |----------|--------------|----------------|
-| Work-Level Credit taxonomy | Complete department + role list for Comics Pillar | Continue brainstorm with Gemini, bring result here to lock into PRD |
-| Navigation structure | Full nav layout beyond Add New Media + toggle | Discuss in Claude Project chat |
-| Legends era list | Full list of Legends timeline eras | Query NotebookLM |
+| Navigation structure | Full nav layout beyond Add New Media + toggle | In progress — Claude Project chat |
 | TV Pillar metadata | Field list for Series, Season, Episode forms | Same process as Comics — Grill Me session |
 
 ---

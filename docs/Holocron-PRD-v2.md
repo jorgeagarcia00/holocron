@@ -1,8 +1,8 @@
 # Holocron — Product Requirements Document
-**Version:** 0.2
+**Version:** 0.3
 **Status:** Active — Foundation + Comics Pillar Fully Specced
 **Audience:** Claude Code (Developer)
-**Last Updated:** May 4, 2026
+**Last Updated:** May 11, 2026
 
 ---
 
@@ -53,11 +53,11 @@ Primary reference points:
 ### 1.4 Tech Stack
 **[DECIDED]**
 
-- **Backend:** Python 3.12, Flask, Flask-SQLAlchemy, Flask-Migrate (Alembic)
+- **Backend:** Python 3.13, Flask, Flask-SQLAlchemy, Flask-Migrate (Alembic)
 - **Database:** SQLite — file: `data/holocron.db`
 - **Frontend:** Jinja2 templates, Tailwind CSS
 - **Interactivity:** htmx (Sprint 3+)
-- **Rich text:** Quill or TipTap (whichever has better Flask/Jinja2 support) — used for Synopsis fields only. Minimum toolbar: Bold, Italic, Unordered List
+- **Rich text:** Quill or TipTap → Quill (implemented in Sprint 3)
 - **Package management:** uv
 
 ---
@@ -108,12 +108,16 @@ A persistent, site-wide filter control in the navigation bar.
 **Data entry context:**
 - Canon toggle → Continuity field pre-fills as Canon on new entry forms
 - Legends toggle → pre-fills as Legends
-- Both toggle → Continuity field blank, manual selection required
+- Both toggle → pre-fills as Both
 
-**Era dropdown behavior:**
-- Canon toggle → Canon eras only
-- Legends toggle → Legends eras only
-- Both toggle → all eras with continuity label
+**Era field behavior by Continuity selection:**
+- Continuity = Canon → single Era dropdown, Canon eras only, required
+- Continuity = Legends → single Era dropdown, Legends eras only, required
+- Continuity = Both → two Era dropdowns appear simultaneously:
+  - Canon Era (Canon eras only, required)
+  - Legends Era (Legends eras only, required)
+
+Applies to all pillars and all entry forms site-wide.
 
 **Character and creator pages:**
 - Character/Creator records are continuity-agnostic
@@ -257,7 +261,7 @@ Credit role terminology uses standardised catch-all terms rather than literal on
 | Title | Text | Yes | |
 | Series Type | Dropdown | Yes | See values below |
 | Continuity | Dropdown | Yes | Canon / Legends / Both. Pre-fills from toggle |
-| Era | Dropdown | Yes | Dependent on Continuity. Canon eras and Legends eras are separate lists. "Multiple Eras" available as option |
+| Era | Dropdown(s) | Yes | Dependent on Continuity selection. Canon → one Canon era dropdown. Legends → one Legends era dropdown. Both → two dropdowns (Canon Era + Legends Era), both required. See Section 2.3. |
 | Publisher | Autocomplete + inline create | Yes | |
 | Imprint | Autocomplete + inline create | No | |
 | Reading Level | — | — | **[TBD]** — Comics audience rating system differs from Books. Current decision: All Ages / T / T+ / M using official publisher-assigned rating. Field name: `age_rating`. Nullable — older comics predate rating system |
@@ -268,21 +272,27 @@ Credit role terminology uses standardised catch-all terms rather than literal on
 
 **Series Type values:**
 - Regular Series
-- Limited Series
-- One-Shot *(single issue — still requires a Series record for consistency)*
-- Annual
-- Collection *(reprint/collected edition series — TPBs, HCs, Omnibuses)*
-- Graphic Novel *(original graphic novels, not collected editions)*
+- One-Shot (series containing a single standalone issue — consistent with all other Series types, 
+  still requires a Series record)
+- Collection (collected editions only — TPBs, HCs, etc)
+- Graphic Novel (original graphic novels, not collected editions)
 
 #### 3.2.3 Series Hub Page
 
 Must contain:
 - Series metadata display with Edit button
-- Issue grid — cover thumbnails, issue number, release date
+- Issue grid — cover thumbnails, title+issue number, full release date (mm/dd/yyyy)
 - Reading progress summary (% of issues completed)
 - **[Add New Issue]** button
 - **[Bulk Add Issues]** button — **[TBD]**
 - **[Bulk Edit Issues]** button — **[TBD]**
+
+Issue grid divided into sections (**design TBD**), each visible only if 
+at least one issue of that type exists:
+  - Issues (Regular Issues, sorted by issue number)
+  - Annuals (sorted by release date)
+  - One-Shots (sorted by release date)
+  - Collected Editions (sorted by release date)
 
 #### 3.2.4 Issue Form
 
@@ -299,14 +309,52 @@ Must contain:
 **Row 7:** Pages / Age Rating / Price USD / UPC-ISBN (all optional)
 **Row 8:** Wookieepedia URL (permanent, label fixed) + generic Add Link rows (URL + Label fields)
 
-**Type values:** Regular Issue / Annual / Graphic Novel / Collected Edition
+**Type values:** Regular Issue / Annual / One-Shot / Collected Edition / Graphic Novel
 **Format values:** Comic / Paperback / Hardcover / Digital
 **Trim Size values:** Standard / Digest / Oversized / Digital / Other (triggers freeform text input)
+
+**Issue # field behavior is dependent on Type selection:**
+
+Regular Issue: label "Issue #", # prefix added by UI only, 
+  user types number only, stored without # in database.
+  Display: [Series Title] #[Number]
+
+Annual: label "Annual", no # prefix, freetext.
+  Display: [Series Title] [Annual value]
+
+One-Shot: label "Title", no # prefix, freetext.
+  Display: [Series Title] — [Title]
+
+Collected Edition: label "Title", no # prefix, freetext, nullable.
+  Display:
+    Blank title + Paperback → [Series Title] TPB
+    Blank title + Hardcover → [Series Title] HC
+    Blank title + Digital → [Series Title] (Digital)
+    Title + Paperback → [Series Title] — [Title] TPB
+    Title + Hardcover → [Series Title] — [Title] HC
+    Title + Digital → [Series Title] — [Title] (Digital)
+
+Graphic Novel: label "Title", no # prefix, freetext.
+  Display: [Series Title] — [Title]
+
+Em dash separator used in all display titles where a 
+separator is needed. Never stored — always generated 
+from Series Title + Issue Title fields.
+
+**Series Type constrains available Issue Types:**
+  Regular Series → Regular Issue, Annual, One-Shot, Collected Edition
+  One-Shot → One-Shot only, maximum one issue, block second issue with error message
+  Collection → Collected Edition only
+  Graphic Novel → Graphic Novel only
+
+Digital — product released digitally only, no print edition exists.
+Does not represent a digital copy of a print product — 
+that is handled by personal tracking (TBD #8).
 
 **Interdependent format logic:**
 - Regular Issue → Format defaults to Comic
 - Collected Edition → Format defaults to Paperback or Hardcover
-- Graphic Novel → Format defaults to Hardcover or Paperback
+- Graphic Novel → Format defaults to Paperback or Hardcover
 
 **External links display:** Each saved link renders as icon button on entry page. Wookieepedia gets its own icon. Generic links display domain favicon or generic link icon. Label becomes tooltip.
 
@@ -326,12 +374,40 @@ Story Scope content units.
 - **[IMPORT]** — opens Import Modal
 - **[ADD]** — adds new segment block with smart defaults
 
-**ADD behavior:**
-- Generates new block with defaults: Type = Story / Reproduction = Original / Colors = Color
-- Sort order auto-increments
-- All fields editable
+**Form load default state:**
+- One segment block is pre-created on form load with:
+  - Sort Order = 1
+  - Type = Story
+  - Reproduction = Original (display only — cannot be changed 
+    on ADD-created segments)
+  - Colors = Color
+  - All other fields empty
+- All credit rows start empty — just the Add button per department
+- Character section starts empty — just the Add button
+- Character Appearance Type has no default — user must explicitly 
+  select Main / Supporting / Cameo / Vision
 
-**Minimum segments to save:** At least one segment block must exist. No individual segment fields required — all optional.
+**ADD behavior:**
+- Generates new block with defaults: Type = Story / 
+  Reproduction = Original / Colors = Color
+- Reproduction Type is display-only on ADD-created segments — 
+  always shows Original, cannot be changed
+- The only way to get non-Original segments is through the 
+  Import Modal
+- Sort order auto-increments from previous segment
+- All other fields editable
+
+**Source Segment field:**
+- Does not appear on ADD-created segments (Reproduction = Original)
+- Only appears on Import Modal-created segments
+- Pre-filled with source reference on import, locked
+- Displays provenance tag: "Linked to [Source Issue Title] · 
+  [Source Release Date]"
+
+**Minimum segments to save:** At least one segment block must 
+exist. Enforced strictly — save blocked if no segments present.
+No individual segment fields required — all optional.
+
 
 #### 3.2.6 Segment Block Fields
 
@@ -458,17 +534,138 @@ Known requirements:
 - Bulk add: multiple Issues in sequence without full page reload per issue
 - Bulk edit: shared fields across multiple selected Issues simultaneously
 
+### 3.2.14 Variant Cover Form
+**[DECIDED]**
+
+#### Overview
+A variant cover is a child record of a parent `comic_issue`. It shares all story 
+content (segments, story credits, characters) and read status with the parent. 
+Ownership is tracked independently per variant.
+
+Variants are stored in a dedicated `variant_cover` table with a `parent_issue_id` 
+FK — not as additional `comic_issue` rows.
+
+Access: from the Issue page, an [ADD VARIANT] button opens a blank variant form. 
+Existing variants appear as a thumbnail grid on the Issue page.
+
+#### Field List
+
+**Static (display only — inherited from parent, never editable):**
+Series Title, Issue #, Continuity, Era, Publisher, Imprint
+
+**Pre-filled from parent but editable:**
+Release Date, Cover Date, Type, Format, Trim Size, Pages, Price USD, UPC/ISBN
+
+**Title Block:**
+- Suggested Title — auto-generated from token formula (see below)
+- Use Suggested toggle — on: locks in auto-generated label / off: manual override
+- Manual title field — editable when Use Suggested is off
+
+**Cover Artwork:**
+Image upload — starts blank on new variant form
+
+**Variant Details:**
+- Variant Type (dropdown): Open Order / Reprint / Incentive Variant / 
+  Retailer Exclusive / Event Exclusive / Facsimile / Misprint / 
+  Miscellaneous / Blind Bag Outcome
+- Cover Descriptor (freetext)
+- Exclusive Seller (freetext)
+- Exclusive Event (freetext)
+- Printing (dropdown: 1st / 2nd / 3rd / etc.)
+- Cover Colors (dropdown: Color / Black & White / Color & Black & White)
+
+**Cover Credits:**
+Empty on new form. Cover department only. Same credit row mechanic as Issue form.
+No story credits. No segment blocks. No external links.
+
+#### Auto-Generated Title Formula
+Tokens appear only if the corresponding field has a value.
+Standard order:
+`[Parent Title] [Printing] [Exclusive Seller] [Exclusive Event] [Cover Artist] [Cover Colors] [Cover Descriptor]`
+
+Exception — Facsimile: when Variant Type = Facsimile, "Facsimile Edition" 
+inserts immediately after Parent Title:
+`[Parent Title] Facsimile Edition [Printing] [Exclusive Seller] [Exclusive Event] [Cover Artist] [Cover Colors] [Cover Descriptor]`
+
+#### Tracking Behavior
+- Read status: inherited from parent issue — marking parent as read marks 
+  all its variants as read
+- Ownership: independent per variant — owning one does not imply owning others
+- Owned variants appear independently on collection page (details TBD)
+
+#### Database Table
+```sql
+variant_cover
+  id, parent_issue_id,
+  release_date, cover_date,
+  designation, physical_binding, trim_size,
+  pages, price, upc_isbn,
+  variant_type, cover_descriptor,
+  exclusive_seller, exclusive_event,
+  printing, cover_colors,
+  suggested_title, use_suggested (boolean),
+  manual_title,
+  cover_image,
+  is_owned (boolean),
+  created_at, updated_at
+```
+
+#### Build Timing
+- Database table: Sprint 3 (alongside Comics UI)
+- UI and variant form: Sprint 4
+- Collection page display: Sprint 6+
+
 ---
 
 ## 4. Global Features
 
 ### 4.1 Navigation
-**[TBD — full structure]**
+**[DECIDED — structure; TBD — full contents and design]**
 
-Known requirements:
-- **[Add New Media]** button always visible — leads to Pillar selection
-- **Canon/Legends toggle** always visible
-- Each Pillar leads to its own creation form
+#### What Is Locked
+- Home page is always the Dashboard view
+- Persistent top navigation bar across all pages
+- Minimum nav bar contents (left to right):
+  - Holocron logo — clicks to Dashboard
+  - Calendar quick link
+  - Canon/Legends toggle
+  - Search bar
+  - [+] Add New Media button
+
+#### Add New Media Modal
+**[DECIDED]**
+Clicking [+] opens a centered overlay modal with a pillar selection grid.
+Pillars: Film / TV / Games / Books / Audio / Comics / Manga / Periodicals? / Reference? (last two TBD)
+Selecting a pillar opens its corresponding entry form.
+Style reference: image provided May 7 2026 — grid of colored pillar icons 
+on dark background. Final design TBD in Claude Design phase.
+
+#### Dashboard
+**[TBD — full contents]**
+Home page. Displays on app load.
+Known requirements: stats summary block (counts for Collected / Read / Wanted).
+Reference: LOCG dashboard layout (provided May 7 2026).
+Everything beyond stats block is TBD.
+
+#### Search
+**[TBD — full implementation, Sprint 4+]**
+Global search across issues, series, creators, characters.
+Reference: LOCG search results page — results split by category 
+(Issues, Creators, etc.) in a two-column layout (provided May 7 2026).
+
+#### Browsing and Filtering
+**[TBD — Sprint 4+]**
+No pillar-specific tab navigation — collection is unified.
+Leaning toward a powerful site-wide side filter panel available on 
+all major browsing pages (collection, creator, character, publisher pages).
+Reference: LOCG universal filter panel (provided May 7 2026).
+Final approach not yet decided.
+
+#### Reference Page Access (Creators, Characters, Publishers)
+**[TBD — Sprint 4]**
+Primary access: clicking through from an entry page.
+Directory pages (browseable lists of all creators/characters/publishers) 
+are under consideration but not yet decided.
 
 ### 4.2 Creator Pages
 **[TBD — layout and contents]**
@@ -637,7 +834,7 @@ series_membership
 - `credit.segment_id` null for Product Scope credits; `credit.issue_id` null for Story Scope credits
 - Era table has separate Canon and Legends eras distinguished by `continuity` field
 - `contribution_log.old_value` and `new_value` stored as JSON diffs
-- `role_name` stored directly on credit record (not a foreign key) because roles are freetext with department-scoped memory, not a fixed controlled vocabulary
+- `role_name` stored directly on credit record (not a foreign key) for filterability. Role vocabulary managed via separate `role` table (department-scoped), seeded with standard Comics roles. New roles auto-added to vocabulary table on first use.
 
 ### 5.4 Era Reference Data
 **[DECIDED]**
@@ -664,7 +861,7 @@ Seed with continuity = 'canon':
 | 70 | The New Republic | Post-Empire era (The Mandalorian, Ahsoka) |
 | 80 | Rise of the First Order | Sequel Trilogy era (Episodes VII–IX) |
 | 90 | New Jedi Order | Future era, Rey's reconstruction of the Order |
-| 999 | Visions (Non-Continuity) | Stories not bound by primary Canon timeline |
+| 999 | Visions | Stories not bound by primary Canon timeline |
 
 #### Legends Eras
 Seed with continuity = 'legends':
@@ -678,14 +875,13 @@ Seed with continuity = 'legends':
 | 50 | The New Republic | 5 ABY – 25 ABY |
 | 60 | The New Jedi Order | 25 ABY – 40 ABY |
 | 70 | Legacy Era | 40 ABY – 140+ ABY |
-| 999 | Infinities (Non-Continuity) | Parodies and What If scenarios |
-
+| 999 | Infinities | Parodies and What If scenarios |
 
 ---
 
 ## 6. Build Order
 
-### Sprint 1 — Foundation
+### Sprint 1 — Foundation ✓ COMPLETE
 **Goal:** Flask runs. Database connects. Audit log works. All reference tables exist with fuzzy search.
 
 1. Flask app factory, config, `.env` file
@@ -696,7 +892,7 @@ Seed with continuity = 'legends':
 6. Fuzzy match search endpoint for all reference tables
 7. Inline creation behavior on all autocomplete fields
 
-### Sprint 2 — Comics Pillar: Data
+### Sprint 2 — Comics Pillar: Data ✓ COMPLETE
 **Goal:** All Comics data models exist and migrated.
 
 1. ComicSeries model and migration
@@ -717,10 +913,10 @@ Seed with continuity = 'legends':
 *Before Sprint 3: resolve TBD — Work-Level Credit taxonomy (product owner in progress)*
 *Before Sprint 3: resolve TBD — Navigation structure*
 
-1. Series Creation Form
-2. Series Hub Page with issue grid and cover inheritance
-3. Issue Form — two-column layout, all fields, rich text synopsis
-4. Story Breakdown section — Issue Credits zone + Segment blocks
+1. ✓ Series Creation Form
+2. ✓ Series Hub Page with issue grid and cover inheritance  
+3. ✓ Issue Form — two-column layout, all fields, rich text synopsis
+4. Story Breakdown section — Issue Credits zone + Segment blocks (IN PROGRESS)
 5. ADD and IMPORT buttons with modal
 6. Compilation workflow
 7. Autocomplete + fuzzy match + inline creation for Creator, Publisher, Character
@@ -778,12 +974,12 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 | # | Item | Blocking | Notes |
 |---|------|---------|-------|
 | 1 | Work-Level Credit taxonomy — departments and roles per Pillar | Sprint 3 | Product owner in progress |
-| 2 | Variant cover workflow and UI | Sprint 4+ | Structure supports it |
+| 2 | Variant cover UI | Sprint 4 | Architecture decided — see Section 3.2.14 |
 | 3 | Bulk add / bulk edit UI | Sprint 4+ | Requirements known |
 | 4 | Creator page layout and contents | Sprint 4 | Requirements known |
 | 5 | Publisher/Imprint page layout | Sprint 4 | Requirements known |
 | 6 | Character page layout and contents | Sprint 4 | Requirements known |
-| 7 | Navigation structure beyond Add New Media + toggle | Sprint 3 | |
+| 7 | Navigation structure | ~~Sprint 3~~ | Partially resolved — see Section 4.1. Full design TBD. |
 | 8 | Personal tracking fields per Pillar | Sprint 3 | Core fields known |
 | 9 | Series membership primary vs. companion definition | Sprint 6+ | Field reserved |
 | 10 | Television Pillar full specification | Sprint 5 | Structure decided |
@@ -793,3 +989,6 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 | 14 | Issue Credits zone visual distinction from Segment credits | Sprint 3 | Claude Design phase |
 | 15 | Continuity badge visual style | Sprint 3 | Claude Design phase |
 | 16 | Legends era list | Sprint 2 | RESOLVED -- see section 5.4 |
+| 17 | Newspaper comic strips — format and pillar placement | Sprint 5+ | Too complex for Comics pillar as-is |
+| 18 | Webcomics — format handling | Sprint 5+ | Pending real-world testing |
+| 19 | FCBD issues — confirmed as One-Shot type under per-year series | Resolved | No special handling needed |
