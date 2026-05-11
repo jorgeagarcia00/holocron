@@ -102,3 +102,14 @@ class Department(db.Model):
     pillar = db.Column(db.String(20), nullable=False)
     scope = db.Column(db.String(10), nullable=False)  # 'story', 'product'
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+
+class Role(db.Model):
+    __tablename__ = 'role'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
+
+    department = db.relationship('Department', backref='roles')

@@ -47,40 +47,60 @@
     </div>
 
     <!-- Continuity + Era -->
-    <div class="grid grid-cols-2 gap-4">
+    {% set sel_continuity = form.continuity or initial_continuity %}
+    <div class="grid grid-cols-2 gap-4 items-start">
       <div>
         <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
           Continuity <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
         </label>
         <select name="continuity" id="continuity-select"
           class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
-          hx-get="/api/eras-options"
-          hx-trigger="change"
-          hx-target="#era-select">
-          {% set sel_continuity = form.continuity or initial_continuity %}
+          onchange="updateEraFields(this.value)">
           <option value="canon"   {% if sel_continuity == 'canon'   %}selected{% endif %}>Canon</option>
           <option value="legends" {% if sel_continuity == 'legends' %}selected{% endif %}>Legends</option>
           <option value="both"    {% if sel_continuity == 'both'    %}selected{% endif %}>Both</option>
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Era <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-        </label>
-        <select name="era_id" id="era-select"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
-          <option value="">Select era…</option>
-          {% for era in eras %}
-          <option value="{{ era.id }}"
-            {% if (form.era_id or '') == era.id | string %}selected{% endif %}>
-            {{ era.name }}
-            {% if (form.continuity or initial_continuity) == 'both' %}({{ era.continuity | title }}){% endif %}
-          </option>
-          {% endfor %}
-          <option value="multiple" {% if (form.era_id or '') == 'multiple' %}selected{% endif %}>
-            Multiple Eras
-          </option>
-        </select>
+      <div class="space-y-3">
+        <!-- Canon Era — shown for canon + both -->
+        <div id="canon-era-group">
+          <label id="canon-era-label" class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+            Era <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+          </label>
+          <select name="canon_era_id" id="canon-era-select"
+            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+            <option value="">Select era…</option>
+            {% for era in canon_eras %}
+            <option value="{{ era.id }}"
+              {% if (form.canon_era_id or '') == era.id | string %}selected{% endif %}>
+              {{ era.name }}
+            </option>
+            {% endfor %}
+            <option value="multiple" {% if (form.canon_era_id or '') == 'multiple' %}selected{% endif %}>
+              Multiple Eras
+            </option>
+          </select>
+        </div>
+        <!-- Legends Era — shown for legends + both -->
+        <div id="legends-era-group">
+          <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
+            <span id="legends-era-label-text">Era</span>
+            <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
+          </label>
+          <select name="legends_era_id" id="legends-era-select"
+            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+            <option value="">Select era…</option>
+            {% for era in legends_eras %}
+            <option value="{{ era.id }}"
+              {% if (form.legends_era_id or '') == era.id | string %}selected{% endif %}>
+              {{ era.name }}
+            </option>
+            {% endfor %}
+            <option value="multiple" {% if (form.legends_era_id or '') == 'multiple' %}selected{% endif %}>
+              Multiple Eras
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -166,4 +186,43 @@
 
   </form>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function updateEraFields(continuity) {
+    const canonGroup  = document.getElementById('canon-era-group');
+    const legendsGroup = document.getElementById('legends-era-group');
+    const canonSelect  = document.getElementById('canon-era-select');
+    const legendsSelect = document.getElementById('legends-era-select');
+    const canonLabel   = document.getElementById('canon-era-label');
+    const legendsLabelText = document.getElementById('legends-era-label-text');
+
+    if (continuity === 'canon') {
+      canonGroup.classList.remove('hidden');
+      legendsGroup.classList.add('hidden');
+      canonLabel.childNodes[0].textContent = 'Era ';
+      canonSelect.required = true;
+      legendsSelect.required = false;
+      legendsSelect.value = '';
+    } else if (continuity === 'legends') {
+      canonGroup.classList.add('hidden');
+      legendsGroup.classList.remove('hidden');
+      legendsLabelText.textContent = 'Era';
+      canonSelect.required = false;
+      legendsSelect.required = true;
+      canonSelect.value = '';
+    } else {
+      canonGroup.classList.remove('hidden');
+      legendsGroup.classList.remove('hidden');
+      canonLabel.childNodes[0].textContent = 'Canon Era ';
+      legendsLabelText.textContent = 'Legends Era';
+      canonSelect.required = true;
+      legendsSelect.required = true;
+    }
+  }
+
+  // Run on load to match the pre-selected continuity value
+  updateEraFields(document.getElementById('continuity-select').value);
+</script>
 {% endblock %}

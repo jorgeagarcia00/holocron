@@ -4,7 +4,7 @@ from app.models.reference import (
     Era, Publisher, Imprint,
     Creator, CreatorAlias,
     Character, CharacterPersona,
-    Department,
+    Department, Role,
 )
 from app.models.comics import (
     ComicSeries,

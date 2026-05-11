@@ -14,7 +14,8 @@ class ComicSeries(db.Model):
     series_type = db.Column(db.String(30), nullable=False)
     # series_type values: regular_series, one_shot, collection, graphic_novel
     continuity = db.Column(db.String(10), nullable=False)  # canon/legends/both
-    era_id = db.Column(db.Integer, db.ForeignKey('era.id'), nullable=True)
+    canon_era_id = db.Column(db.Integer, db.ForeignKey('era.id'), nullable=True)
+    legends_era_id = db.Column(db.Integer, db.ForeignKey('era.id'), nullable=True)
     is_timeline_spanning = db.Column(db.Boolean, nullable=False, default=False)
     publisher_id = db.Column(db.Integer, db.ForeignKey('publisher.id'), nullable=False)
     imprint_id = db.Column(db.Integer, db.ForeignKey('imprint.id'), nullable=True)
@@ -25,7 +26,8 @@ class ComicSeries(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
 
-    era = db.relationship('Era', backref='comic_series')
+    canon_era = db.relationship('Era', foreign_keys=[canon_era_id], backref='canon_comic_series')
+    legends_era = db.relationship('Era', foreign_keys=[legends_era_id], backref='legends_comic_series')
     publisher = db.relationship('Publisher', backref='comic_series')
     imprint = db.relationship('Imprint', backref='comic_series')
     issues = db.relationship('ComicIssue', backref='series', lazy='dynamic',

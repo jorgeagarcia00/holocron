@@ -5,7 +5,7 @@ from app.extensions import db
 from app.models.audit import log_contribution
 from app.models.reference import (
     Creator, Publisher, Imprint,
-    Character, CharacterPersona, Era,
+    Character, CharacterPersona, Era, Role,
 )
 from app.utils import make_unique_slug
 
@@ -25,12 +25,13 @@ def search():
         return jsonify([])
 
     handlers = {
-        'creator':           _search_creator,
-        'publisher':         _search_publisher,
-        'imprint':           _search_imprint,
-        'character':         _search_character,
-        'character_persona': _search_character_persona,
-        'era':               _search_era,
+        'creator':            _search_creator,
+        'publisher':          _search_publisher,
+        'imprint':            _search_imprint,
+        'character':          _search_character,
+        'character_persona':  _search_character_persona,
+        'era':                _search_era,
+        'character_combined': _search_character_combined,
     }
 
     handler = handlers.get(record_type)
@@ -89,6 +90,50 @@ def _search_era(q):
     hits = _fuzzy(q, {r.id: r.name for r in rows})
     return [{'id': key, 'name': val, 'continuity': idx[key].continuity}
             for val, score, key in hits]
+
+
+def _search_character_combined(q):
+    """Searches both Character baseline names and CharacterPersona names simultaneously.
+    Returns results with character_id and persona_id (null for baseline hits)."""
+    chars = Character.query.all()
+    personas = CharacterPersona.query.all()
+
+    char_map = {c.id: c for c in chars}
+    persona_map = {p.id: p for p in personas}
+
+    # Prefix keys so baseline and persona IDs don't collide
+    combined = {}
+    for c in chars:
+        combined[f'c{c.id}'] = c.baseline_name
+    for p in personas:
+        combined[f'p{p.id}'] = p.persona_name
+
+    q_lower = q.lower()
+    hits = _fuzzy(q, combined)
+
+    # Sort: starts-with first
+    starts = [(v, s, k) for v, s, k in hits if combined[k].lower().startswith(q_lower)]
+    others = [(v, s, k) for v, s, k in hits if not combined[k].lower().startswith(q_lower)]
+    ordered = (starts + others)[:10]
+
+    results = []
+    for _val, _score, key in ordered:
+        if key.startswith('c'):
+            c = char_map[int(key[1:])]
+            results.append({
+                'display': c.baseline_name,
+                'character_id': c.id,
+                'persona_id': None,
+            })
+        else:
+            p = persona_map[int(key[1:])]
+            c = char_map[p.baseline_character_id]
+            results.append({
+                'display': f'{c.baseline_name} as {p.persona_name}',
+                'character_id': p.baseline_character_id,
+                'persona_id': p.id,
+            })
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +293,31 @@ def autocomplete():
                            query=q,
                            record_type=record_type,
                            widget=widget)
+
+
+# ---------------------------------------------------------------------------
+# Role vocabulary autocomplete (returns JSON)
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/roles')
+def roles():
+    department_id = request.args.get('department_id', type=int)
+    q = request.args.get('q', '').strip()
+
+    if not department_id:
+        return jsonify([])
+
+    rows = Role.query.filter_by(department_id=department_id).order_by(Role.name).all()
+
+    if not q:
+        return jsonify([r.name for r in rows])
+
+    q_lower = q.lower()
+    starts = [r.name for r in rows if r.name.lower().startswith(q_lower)]
+    others = [r.name for r in rows
+              if not r.name.lower().startswith(q_lower)
+              and fuzz.WRatio(q, r.name) >= 60]
+    return jsonify((starts + others)[:10])
 
 
 # ---------------------------------------------------------------------------

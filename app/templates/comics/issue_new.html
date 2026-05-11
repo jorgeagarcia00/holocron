@@ -90,9 +90,19 @@
           <div>
             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Era</label>
             <div class="px-3 py-2 text-sm text-gray-400 bg-gray-900/40 border border-gray-800 rounded select-none truncate">
-              {% if series.is_timeline_spanning %}Multiple Eras
-              {% elif series.era %}{{ series.era.name }}
-              {% else %}—{% endif %}
+              {% if series.continuity == 'both' %}
+                {% if series.canon_era or series.legends_era %}
+                  {% if series.canon_era %}{{ series.canon_era.name }}{% else %}Multiple Eras{% endif %}
+                  /
+                  {% if series.legends_era %}{{ series.legends_era.name }}{% else %}Multiple Eras{% endif %}
+                {% elif series.is_timeline_spanning %}Multiple Eras
+                {% else %}—{% endif %}
+              {% else %}
+                {% set era = series.canon_era or series.legends_era %}
+                {% if era %}{{ era.name }}
+                {% elif series.is_timeline_spanning %}Multiple Eras
+                {% else %}—{% endif %}
+              {% endif %}
             </div>
           </div>
         </div>
@@ -274,17 +284,58 @@
       </div><!-- end right column -->
     </div><!-- end two-column flex -->
 
-    <!-- Story Breakdown (placeholder) -->
+    <!-- Story Breakdown -->
     <div class="border-t border-gray-800 pt-8 mb-8">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
-          <p class="text-xs text-gray-600 mt-0.5">Issue Credits + Segment blocks — coming in the next step.</p>
+
+      <!-- Section header -->
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
+        <div class="flex gap-2">
+          <button type="button" disabled
+            class="text-xs text-gray-600 border border-gray-800 rounded px-3 py-1.5 cursor-not-allowed select-none"
+            title="Import from existing segment — coming soon">Import</button>
+          <button type="button" onclick="addSegment()"
+            class="text-xs text-yellow-400 border border-yellow-400/30 rounded px-3 py-1.5 hover:bg-yellow-400/10 transition-colors">+ Add</button>
         </div>
       </div>
-      <div class="border border-dashed border-gray-800 rounded-lg p-10 text-center">
-        <p class="text-gray-700 text-sm">No segments yet.</p>
+
+      <!-- Zone 1: Issue Credits -->
+      <div id="issue-credits-zone" class="bg-gray-900/60 border border-gray-700 rounded-lg p-4 mb-6">
+        <div class="mb-4">
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400">Issue Credits</h3>
+          <p class="text-xs text-gray-600 mt-0.5">Product scope · does not transfer on segment import</p>
+        </div>
+        {% for dept in product_depts %}
+        <div class="{% if not loop.last %}mb-4 pb-4 border-b border-gray-800/60{% endif %}"
+             data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">{{ dept.name }}</span>
+            <button type="button" onclick="addCreditRow(this)"
+              class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
+          </div>
+          <div class="credit-rows space-y-1.5"></div>
+        </div>
+        {% endfor %}
       </div>
+
+      <!-- Zone 2: Segment blocks -->
+      <div id="segments-container" class="space-y-4"></div>
+
+      <!-- No-segments validation message (shown on failed submit) -->
+      <div id="no-segments-msg" class="hidden border border-dashed border-red-900/50 rounded-lg p-8 text-center mt-4">
+        <p class="text-red-600 text-sm">At least one segment is required to save the issue.</p>
+      </div>
+
+      <!-- Serialized story data — populated by JS on submit -->
+      <input type="hidden" name="story_json" id="story-json-input">
+
+      <!-- Department metadata for JS -->
+      <script id="dept-data" type="application/json">
+        {
+          "story": {{ story_depts | map(attribute='id') | list | tojson }},
+          "storyNames": {{ story_depts | map(attribute='name') | list | tojson }}
+        }
+      </script>
     </div>
 
     <!-- Form actions -->
@@ -304,140 +355,429 @@
 {% block extra_scripts %}
 <script src="{{ url_for('static', filename='js/quill.min.js') }}"></script>
 <script>
-  // ── Quill rich text editor ──────────────────────────────────────
-  const quill = new Quill('#synopsis-editor', {
-    theme: 'snow',
-    placeholder: 'Series synopsis…',
-    modules: { toolbar: [['bold', 'italic'], [{ list: 'bullet' }]] }
-  });
+// ── Quill ─────────────────────────────────────────────────────────
+const quill = new Quill('#synopsis-editor', {
+  theme: 'snow',
+  placeholder: 'Series synopsis…',
+  modules: { toolbar: [['bold', 'italic'], [{ list: 'bullet' }]] }
+});
+const synopsisInput = document.getElementById('synopsis-input');
+if (synopsisInput.value && synopsisInput.value !== '<p><br></p>') {
+  quill.root.innerHTML = synopsisInput.value;
+}
 
-  const synopsisInput = document.getElementById('synopsis-input');
-  if (synopsisInput.value && synopsisInput.value !== '<p><br></p>') {
-    quill.root.innerHTML = synopsisInput.value;
+// ── Cover preview ─────────────────────────────────────────────────
+document.getElementById('cover-upload').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('cover-preview').src = e.target.result;
+    document.getElementById('cover-preview').classList.remove('hidden');
+    document.getElementById('cover-placeholder').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Series Type → allowed Issue Types ────────────────────────────
+const SERIES_TYPE = {{ series.series_type | tojson }};
+const ALLOWED_DESIGNATIONS = {
+  regular_series: null,
+  one_shot:       ['one_shot'],
+  collection:     ['collected_edition'],
+  graphic_novel:  ['graphic_novel'],
+};
+(function () {
+  const allowed = ALLOWED_DESIGNATIONS[SERIES_TYPE];
+  if (!allowed) return;
+  const sel = document.getElementById('designation');
+  for (const opt of sel.options) { opt.disabled = opt.hidden = !allowed.includes(opt.value); }
+  if (!allowed.includes(sel.value)) { sel.value = allowed[0]; sel.dispatchEvent(new Event('change')); }
+})();
+
+const BINDING_ALLOWED = {
+  collection:    ['paperback', 'hardcover', 'digital'],
+  graphic_novel: ['paperback', 'hardcover', 'digital'],
+};
+(function () {
+  const allowed = BINDING_ALLOWED[SERIES_TYPE];
+  if (!allowed) return;
+  const sel = document.getElementById('physical_binding');
+  for (const opt of sel.options) { opt.disabled = opt.hidden = !allowed.includes(opt.value); }
+  if (!allowed.includes(sel.value)) sel.value = allowed[0];
+})();
+
+const ISSUE_LABEL = { regular_issue: 'Issue #', annual: 'Annual', one_shot: 'Title', collected_edition: 'Title', graphic_novel: 'Title' };
+const ISSUE_PLACEHOLDER = { regular_issue: '1', annual: '2025 Annual', one_shot: '', collected_edition: '', graphic_novel: '' };
+const ISSUE_REQUIRED = ['regular_issue', 'annual', 'graphic_novel'];
+function updateIssueNumberField(type) {
+  document.getElementById('issue-number-label').textContent = ISSUE_LABEL[type] || 'Issue #';
+  const input = document.getElementById('issue_number');
+  input.placeholder = ISSUE_PLACEHOLDER[type] || '';
+  const req = ISSUE_REQUIRED.includes(type);
+  const span = document.getElementById('issue-number-req');
+  span.textContent = req ? 'required' : 'optional';
+  span.className = req ? 'text-yellow-400 normal-case font-normal tracking-normal' : 'text-gray-600 normal-case font-normal tracking-normal';
+  req ? input.setAttribute('required', '') : input.removeAttribute('required');
+}
+updateIssueNumberField(document.getElementById('designation').value);
+
+const FORMAT_DEFAULTS = {{ format_defaults | tojson }};
+document.getElementById('designation').addEventListener('change', function () {
+  updateIssueNumberField(this.value);
+  const def = FORMAT_DEFAULTS[this.value];
+  if (def) document.getElementById('physical_binding').value = def;
+});
+document.getElementById('trim-size').addEventListener('change', function () {
+  document.getElementById('trim-custom-row').classList.toggle('hidden', this.value !== 'other');
+});
+
+function addLink() {
+  const row = document.createElement('div');
+  row.className = 'flex gap-2';
+  row.innerHTML = `
+    <input type="url" name="link_url" placeholder="https://…"
+      class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
+    <input type="text" name="link_label" placeholder="Label (optional)"
+      class="w-40 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
+    <button type="button" onclick="this.closest('div').remove()"
+      class="text-gray-600 hover:text-gray-300 px-2 text-lg leading-none transition-colors">&times;</button>`;
+  document.getElementById('links-container').appendChild(row);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// Story Breakdown
+// ═════════════════════════════════════════════════════════════════
+
+const _deptMeta = JSON.parse(document.getElementById('dept-data').textContent);
+const STORY_DEPTS = _deptMeta.story.map((id, i) => ({ id, name: _deptMeta.storyNames[i] }));
+
+const SEG_TYPES = [
+  ['story','Story'],['text_story','Text Story'],['data_page','Data Page'],
+  ['illustration','Illustration'],['process_art','Process Art'],['script','Script'],
+  ['introduction','Introduction'],['afterword','Afterword'],['text_article','Text Article'],
+  ['letters','Letters'],['cover_gallery','Cover Gallery'],['recap','Recap'],
+];
+const SEG_COLORS = [
+  ['color','Color'],['black_and_white','Black & White'],['color_and_black_and_white','Color & B&W'],
+];
+
+let _segIdx = 0;
+let _credIdx = 0;
+
+// ── Shared input style ────────────────────────────────────────────
+const _inp = 'bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors';
+
+// ── Segment management ────────────────────────────────────────────
+function addSegment() {
+  const container = document.getElementById('segments-container');
+  const existing = container.querySelectorAll('[data-seg-idx]');
+  let maxSort = 0;
+  existing.forEach(el => { maxSort = Math.max(maxSort, parseInt(el.querySelector('.seg-sort').value) || 0); });
+
+  const idx = _segIdx++;
+  const sort = maxSort + 1;
+  const typeOpts = SEG_TYPES.map(([v, l]) => `<option value="${v}"${v==='story'?' selected':''}>${l}</option>`).join('');
+  const colorOpts = SEG_COLORS.map(([v, l]) => `<option value="${v}"${v==='color'?' selected':''}>${l}</option>`).join('');
+  const deptSections = STORY_DEPTS.map(d => `
+    <div data-dept-id="${d.id}" data-dept-name="${d.name}">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">${d.name}</span>
+        <button type="button" onclick="addCreditRow(this)"
+          class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
+      </div>
+      <div class="credit-rows space-y-1.5"></div>
+    </div>`).join('');
+
+  const block = document.createElement('div');
+  block.className = 'border border-gray-700 rounded-lg overflow-hidden';
+  block.dataset.segIdx = idx;
+  block.innerHTML = `
+    <div class="bg-gray-800/50 px-4 py-2.5 flex items-center gap-3 border-b border-gray-700/60">
+      <span class="text-xs text-gray-600 font-mono shrink-0 select-none">Sort</span>
+      <input type="number" value="${sort}" min="1"
+        class="seg-sort w-14 text-center ${_inp}">
+      <select class="seg-type flex-1 ${_inp}">${typeOpts}</select>
+      <span class="text-xs text-gray-500 border border-gray-700 rounded px-2 py-1.5 shrink-0 select-none bg-gray-900/40">Original</span>
+      <select class="seg-colors w-36 ${_inp}">${colorOpts}</select>
+      <button type="button" onclick="removeSegment(this)"
+        class="ml-auto text-gray-700 hover:text-red-400 text-xs transition-colors shrink-0">Remove</button>
+    </div>
+    <div class="p-4 space-y-4 bg-gray-950/30">
+      <div class="grid grid-cols-4 gap-3">
+        <div class="col-span-3">
+          <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Title</label>
+          <input type="text" placeholder="Story title (optional)" class="seg-title w-full ${_inp}">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Pages</label>
+          <input type="number" placeholder="22" min="1" class="seg-pages w-full ${_inp}">
+        </div>
+      </div>
+      <div class="space-y-3 pt-1">${deptSections}</div>
+      <div class="char-section pt-1">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">Characters</span>
+          <button type="button" onclick="addCharRow(this)"
+            class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Character</button>
+        </div>
+        <div class="char-rows space-y-1.5"></div>
+      </div>
+    </div>`;
+  container.appendChild(block);
+  _updateNoSegMsg();
+}
+
+function removeSegment(btn) {
+  btn.closest('[data-seg-idx]').remove();
+  _updateNoSegMsg();
+}
+
+function _updateNoSegMsg() {
+  const hasSegs = document.querySelectorAll('#segments-container [data-seg-idx]').length > 0;
+  document.getElementById('no-segments-msg').classList.toggle('hidden', hasSegs);
+}
+
+// ── Credit rows ───────────────────────────────────────────────────
+function addCreditRow(btn) {
+  const deptEl = btn.closest('[data-dept-id]');
+  const deptId = deptEl.dataset.deptId;
+  const cid = _credIdx++;
+  const row = document.createElement('div');
+  row.className = 'credit-row flex items-center gap-2';
+  row.innerHTML = `
+    <div class="flex-1 sb-autocomplete relative">
+      <input type="text" placeholder="Creator name…" autocomplete="off"
+        class="creator-q w-full ${_inp}" oninput="creatorSearch(this)">
+      <input type="hidden" class="creator-id">
+      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+    </div>
+    <div class="role-wrapper relative w-44">
+      <input type="text" placeholder="Role…" autocomplete="off"
+        data-dept-id="${deptId}"
+        class="role-q w-full ${_inp}"
+        oninput="roleSearch(this)" onfocus="roleSearch(this)">
+      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+    </div>
+    <button type="button" onclick="this.closest('.credit-row').remove()"
+      class="text-gray-600 hover:text-red-400 text-lg leading-none shrink-0 px-1 transition-colors">&times;</button>`;
+  deptEl.querySelector('.credit-rows').appendChild(row);
+}
+
+// ── Character rows ────────────────────────────────────────────────
+function addCharRow(btn) {
+  const row = document.createElement('div');
+  row.className = 'char-row flex items-center gap-2';
+  row.innerHTML = `
+    <div class="flex-1 sb-autocomplete relative">
+      <input type="text" placeholder="Character or persona name…" autocomplete="off"
+        class="char-q w-full ${_inp}" oninput="charSearch(this)">
+      <input type="hidden" class="char-id">
+      <input type="hidden" class="persona-id">
+      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+    </div>
+    <select class="appearance-type w-36 ${_inp}">
+      <option value="">— type —</option>
+      <option value="main">Main</option>
+      <option value="supporting">Supporting</option>
+      <option value="cameo">Cameo</option>
+      <option value="vision">Vision</option>
+    </select>
+    <button type="button" onclick="this.closest('.char-row').remove()"
+      class="text-gray-600 hover:text-red-400 text-lg leading-none shrink-0 px-1 transition-colors">&times;</button>`;
+  btn.closest('.char-section').querySelector('.char-rows').appendChild(row);
+}
+
+// ── Autocomplete shared ───────────────────────────────────────────
+function _showDrop(dropEl, items, onPick) {
+  if (!items.length) { dropEl.innerHTML = ''; return; }
+  dropEl._onPick = onPick;
+  dropEl._items  = items;
+  dropEl.innerHTML = items.map((item, i) =>
+    `<button type="button" data-idx="${i}"
+      class="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 transition-colors block
+             ${item._create ? 'text-yellow-400 border-t border-gray-700' : 'text-gray-200'}">
+      ${item.label}</button>`
+  ).join('');
+}
+
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-idx]');
+  if (btn) {
+    const drop = btn.closest('.sb-drop');
+    if (drop && drop._onPick) {
+      drop._onPick(drop._items[parseInt(btn.dataset.idx)]);
+      drop.innerHTML = '';
+    }
+    return;
   }
+  if (!e.target.closest('.sb-autocomplete') && !e.target.closest('.role-wrapper')) {
+    document.querySelectorAll('.sb-drop').forEach(d => { d.innerHTML = ''; });
+  }
+});
 
-  document.querySelector('form').addEventListener('submit', function () {
-    const html = quill.root.innerHTML;
-    synopsisInput.value = (html === '<p><br></p>') ? '' : html;
+// ── Creator autocomplete ──────────────────────────────────────────
+async function creatorSearch(input) {
+  clearTimeout(input._t);
+  const q = input.value.trim();
+  const drop = input.closest('.sb-autocomplete').querySelector('.sb-drop');
+  if (!q) { drop.innerHTML = ''; return; }
+  input._t = setTimeout(async () => {
+    const resp = await fetch(`/api/search?type=creator&q=${encodeURIComponent(q)}`);
+    const data = await resp.json();
+    const items = data.slice(0, 8).map((r, i) => ({ label: r.name, name: r.name, id: r.id }));
+    items.push({ label: `+ Create &ldquo;${q}&rdquo;`, name: q, id: null, _create: true });
+    _showDrop(drop, items, async item => {
+      const row = input.closest('.credit-row');
+      if (item._create) {
+        const r = await fetch('/api/create', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'creator', name: item.name }) });
+        if (r.ok) { const d = await r.json(); input.value = d.name; row.querySelector('.creator-id').value = d.id; }
+      } else {
+        input.value = item.name;
+        row.querySelector('.creator-id').value = item.id;
+      }
+    });
+  }, 250);
+}
+
+// ── Role autocomplete ─────────────────────────────────────────────
+async function roleSearch(input) {
+  clearTimeout(input._t);
+  const deptId = input.dataset.deptId;
+  const q = input.value.trim();
+  const drop = input.closest('.role-wrapper').querySelector('.sb-drop');
+  input._t = setTimeout(async () => {
+    const url = `/api/roles?department_id=${deptId}${q ? '&q=' + encodeURIComponent(q) : ''}`;
+    const resp = await fetch(url);
+    const roles = await resp.json();
+    const items = roles.slice(0, 10).map(name => ({ label: name, name }));
+    _showDrop(drop, items, item => { input.value = item.name; });
+  }, q ? 200 : 0);
+}
+
+// ── Character autocomplete ────────────────────────────────────────
+async function charSearch(input) {
+  clearTimeout(input._t);
+  const q = input.value.trim();
+  const drop = input.closest('.sb-autocomplete').querySelector('.sb-drop');
+  if (!q) { drop.innerHTML = ''; return; }
+  input._t = setTimeout(async () => {
+    const resp = await fetch(`/api/search?type=character_combined&q=${encodeURIComponent(q)}`);
+    const data = await resp.json();
+    const items = data.slice(0, 8).map(r => ({
+      label: r.display, display: r.display,
+      character_id: r.character_id, persona_id: r.persona_id
+    }));
+    items.push({ label: `+ Create &ldquo;${q}&rdquo;`, display: q, character_id: null, persona_id: null, _create: true });
+    _showDrop(drop, items, async item => {
+      const row = input.closest('.char-row');
+      if (item._create) {
+        const r = await fetch('/api/create', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'character', name: item.display, continuity: 'both' }) });
+        if (r.ok) { const d = await r.json(); input.value = d.name; row.querySelector('.char-id').value = d.id; row.querySelector('.persona-id').value = ''; }
+      } else {
+        input.value = item.display;
+        row.querySelector('.char-id').value = item.character_id || '';
+        row.querySelector('.persona-id').value = item.persona_id || '';
+      }
+    });
+  }, 250);
+}
+
+// ── Gather story JSON ─────────────────────────────────────────────
+function gatherStoryJson() {
+  const result = { issue_credits: [], segments: [] };
+
+  document.querySelectorAll('#issue-credits-zone [data-dept-id]').forEach(deptEl => {
+    const deptId = parseInt(deptEl.dataset.deptId);
+    deptEl.querySelectorAll('.credit-row').forEach(row => {
+      const creatorQ = row.querySelector('.creator-q').value.trim();
+      const creatorId = row.querySelector('.creator-id').value.trim();
+      const role = row.querySelector('.role-q').value.trim();
+      if (creatorQ || role) {
+        result.issue_credits.push({
+          dept_id: deptId,
+          creator_id: creatorId ? parseInt(creatorId) : null,
+          creator_q: creatorQ,
+          role,
+        });
+      }
+    });
   });
 
-  // ── Cover image live preview ────────────────────────────────────
-  document.getElementById('cover-upload').addEventListener('change', function () {
-    const file = this.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const preview = document.getElementById('cover-preview');
-      const placeholder = document.getElementById('cover-placeholder');
-      preview.src = e.target.result;
-      preview.classList.remove('hidden');
-      placeholder.classList.add('hidden');
+  document.querySelectorAll('#segments-container > [data-seg-idx]').forEach(segEl => {
+    const pagesVal = segEl.querySelector('.seg-pages').value.trim();
+    const seg = {
+      sort_order:   parseInt(segEl.querySelector('.seg-sort').value) || 1,
+      segment_type: segEl.querySelector('.seg-type').value || null,
+      colors:       segEl.querySelector('.seg-colors').value || null,
+      title:        segEl.querySelector('.seg-title').value.trim() || null,
+      pages:        pagesVal ? parseInt(pagesVal) : null,
+      credits:      [],
+      characters:   [],
     };
-    reader.readAsDataURL(file);
+
+    segEl.querySelectorAll('[data-dept-id]').forEach(deptEl => {
+      const deptId = parseInt(deptEl.dataset.deptId);
+      deptEl.querySelectorAll('.credit-row').forEach(row => {
+        const creatorQ = row.querySelector('.creator-q').value.trim();
+        const creatorId = row.querySelector('.creator-id').value.trim();
+        const role = row.querySelector('.role-q').value.trim();
+        if (creatorQ || role) {
+          seg.credits.push({
+            dept_id: deptId,
+            creator_id: creatorId ? parseInt(creatorId) : null,
+            creator_q: creatorQ,
+            role,
+          });
+        }
+      });
+    });
+
+    segEl.querySelectorAll('.char-row').forEach(row => {
+      const charQ  = row.querySelector('.char-q').value.trim();
+      const charId = row.querySelector('.char-id').value.trim();
+      const personaId = row.querySelector('.persona-id').value.trim();
+      const appType = row.querySelector('.appearance-type').value;
+      if (charQ || charId) {
+        seg.characters.push({
+          character_id:    charId ? parseInt(charId) : null,
+          character_q:     charQ,
+          persona_id:      personaId ? parseInt(personaId) : null,
+          appearance_type: appType || null,
+        });
+      }
+    });
+
+    result.segments.push(seg);
   });
 
-  // ── Series Type → allowed Issue Types ──────────────────────────
-  const SERIES_TYPE = {{ series.series_type | tojson }};
-  const ALLOWED_DESIGNATIONS = {
-    regular_series: null,
-    one_shot:       ['one_shot'],
-    collection:     ['collected_edition'],
-    graphic_novel:  ['graphic_novel'],
-  };
-  (function filterDesignations() {
-    const allowed = ALLOWED_DESIGNATIONS[SERIES_TYPE];
-    if (!allowed) return;
-    const sel = document.getElementById('designation');
-    for (const opt of sel.options) {
-      opt.disabled = !allowed.includes(opt.value);
-      opt.hidden   = !allowed.includes(opt.value);
-    }
-    if (!allowed.includes(sel.value)) {
-      sel.value = allowed[0];
-      sel.dispatchEvent(new Event('change'));
-    }
-  })();
+  return result;
+}
 
-  // ── Format filtering by Series Type ─────────────────────────────
-  const BINDING_ALLOWED = {
-    collection:    ['paperback', 'hardcover', 'digital'],
-    graphic_novel: ['paperback', 'hardcover', 'digital'],
-  };
-  (function filterFormats() {
-    const allowed = BINDING_ALLOWED[SERIES_TYPE];
-    if (!allowed) return;
-    const sel = document.getElementById('physical_binding');
-    for (const opt of sel.options) {
-      opt.disabled = !allowed.includes(opt.value);
-      opt.hidden   = !allowed.includes(opt.value);
-    }
-    if (!allowed.includes(sel.value)) {
-      sel.value = allowed[0];
-    }
-  })();
+// ── Form submit ───────────────────────────────────────────────────
+document.querySelector('form').addEventListener('submit', function (e) {
+  // Quill
+  const html = quill.root.innerHTML;
+  synopsisInput.value = (html === '<p><br></p>') ? '' : html;
 
-  // ── Issue # label + placeholder changes with Type ──────────────
-  const ISSUE_LABEL = {
-    regular_issue:     'Issue #',
-    annual:            'Annual',
-    one_shot:          'Title',
-    collected_edition: 'Title',
-    graphic_novel:     'Title',
-  };
-  const ISSUE_PLACEHOLDER = {
-    regular_issue:     '1',
-    annual:            '2025 Annual',
-    one_shot:          '',
-    collected_edition: '',
-    graphic_novel:     '',
-  };
-  const ISSUE_REQUIRED = ['regular_issue', 'annual', 'graphic_novel'];
-
-  function updateIssueNumberField(type) {
-    document.getElementById('issue-number-label').textContent = ISSUE_LABEL[type] || 'Issue #';
-    const input = document.getElementById('issue_number');
-    input.placeholder = ISSUE_PLACEHOLDER[type] || '';
-    const isRequired = ISSUE_REQUIRED.includes(type);
-    const reqSpan = document.getElementById('issue-number-req');
-    reqSpan.textContent = isRequired ? 'required' : 'optional';
-    reqSpan.className = isRequired
-      ? 'text-yellow-400 normal-case font-normal tracking-normal'
-      : 'text-gray-600 normal-case font-normal tracking-normal';
-    if (isRequired) { input.setAttribute('required', ''); }
-    else             { input.removeAttribute('required'); }
+  // Segment validation
+  const segCount = document.querySelectorAll('#segments-container > [data-seg-idx]').length;
+  if (segCount === 0) {
+    e.preventDefault();
+    const msg = document.getElementById('no-segments-msg');
+    msg.classList.remove('hidden');
+    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
   }
 
-  // Run on load with current value
-  updateIssueNumberField(document.getElementById('designation').value);
+  document.getElementById('story-json-input').value = JSON.stringify(gatherStoryJson());
+});
 
-  // ── Type → Format smart default ────────────────────────────────
-  const FORMAT_DEFAULTS = {{ format_defaults | tojson }};
-
-  // Single change handler for designation — label + format default
-  document.getElementById('designation').addEventListener('change', function () {
-    updateIssueNumberField(this.value);
-    const def = FORMAT_DEFAULTS[this.value];
-    if (def) document.getElementById('physical_binding').value = def;
-  });
-
-  // ── Trim Size "other" reveals custom field ──────────────────────
-  document.getElementById('trim-size').addEventListener('change', function () {
-    document.getElementById('trim-custom-row').classList.toggle('hidden', this.value !== 'other');
-  });
-
-  // ── Dynamic additional link rows ───────────────────────────────
-  function addLink() {
-    const row = document.createElement('div');
-    row.className = 'flex gap-2';
-    row.innerHTML = `
-      <input type="url" name="link_url" placeholder="https://…"
-        class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
-      <input type="text" name="link_label" placeholder="Label (optional)"
-        class="w-40 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors">
-      <button type="button" onclick="this.closest('div').remove()"
-        class="text-gray-600 hover:text-gray-300 px-2 text-lg leading-none transition-colors">&times;</button>
-    `;
-    document.getElementById('links-container').appendChild(row);
-  }
+// ── Pre-create default segment on load ───────────────────────────
+addSegment();
 </script>
 {% endblock %}

@@ -1,3 +1,4 @@
+import json as _json
 import os
 import uuid
 from datetime import date
@@ -6,9 +7,9 @@ from flask import Blueprint, current_app, render_template, request, redirect
 
 from app.extensions import db
 from app.models.audit import log_contribution
-from app.models.comics import ComicIssue, ComicSeries, ExternalLink
+from app.models.comics import CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink
 from app.models.preferences import UserPreferences
-from app.models.reference import Era, Imprint, Publisher
+from app.models.reference import Character, CharacterPersona, Creator, Department, Era, Imprint, Publisher, Role
 from app.utils import make_unique_slug
 
 comics_bp = Blueprint('comics', __name__)
@@ -68,10 +69,12 @@ SERIES_TYPES = [
 ]
 
 
-def _get_eras(continuity):
-    if continuity == 'both':
-        return Era.query.order_by(Era.continuity, Era.sort_order).all()
-    return Era.query.filter_by(continuity=continuity).order_by(Era.sort_order).all()
+def _get_canon_eras():
+    return Era.query.filter_by(continuity='canon').order_by(Era.sort_order).all()
+
+
+def _get_legends_eras():
+    return Era.query.filter_by(continuity='legends').order_by(Era.sort_order).all()
 
 
 @comics_bp.route('/comics/series/new', methods=['GET', 'POST'])
@@ -82,10 +85,10 @@ def series_new():
     if request.method == 'POST':
         return _handle_series_create(initial_continuity)
 
-    eras = _get_eras(initial_continuity)
     return render_template('comics/series_new.html',
                            initial_continuity=initial_continuity,
-                           eras=eras,
+                           canon_eras=_get_canon_eras(),
+                           legends_eras=_get_legends_eras(),
                            series_types=SERIES_TYPES,
                            form={},
                            errors=[])
@@ -95,17 +98,18 @@ def _handle_series_create(initial_continuity):
     f = request.form
     errors = []
 
-    title        = f.get('title', '').strip()
-    series_type  = f.get('series_type', '').strip()
-    continuity   = f.get('continuity', '').strip()
-    era_id_raw   = f.get('era_id', '').strip()
-    pub_id_raw   = f.get('publisher_id', '').strip()
-    pub_q        = f.get('publisher_q', '').strip()
-    imp_id_raw   = f.get('imprint_id', '').strip()
-    imp_q        = f.get('imprint_q', '').strip()
-    start_year   = f.get('start_year', '').strip() or None
-    end_year     = f.get('end_year', '').strip() or None
-    synopsis     = f.get('synopsis', '').strip() or None
+    title            = f.get('title', '').strip()
+    series_type      = f.get('series_type', '').strip()
+    continuity       = f.get('continuity', '').strip()
+    canon_era_raw    = f.get('canon_era_id', '').strip()
+    legends_era_raw  = f.get('legends_era_id', '').strip()
+    pub_id_raw       = f.get('publisher_id', '').strip()
+    pub_q            = f.get('publisher_q', '').strip()
+    imp_id_raw       = f.get('imprint_id', '').strip()
+    imp_q            = f.get('imprint_q', '').strip()
+    start_year       = f.get('start_year', '').strip() or None
+    end_year         = f.get('end_year', '').strip() or None
+    synopsis         = f.get('synopsis', '').strip() or None
 
     valid_types = {v for v, _ in SERIES_TYPES}
 
@@ -115,23 +119,26 @@ def _handle_series_create(initial_continuity):
         errors.append('Series Type is required.')
     if continuity not in ('canon', 'legends', 'both'):
         errors.append('Continuity is required.')
-    if not era_id_raw:
-        errors.append('Era is required.')
+    if continuity in ('canon', 'both') and not canon_era_raw:
+        errors.append('Canon Era is required.' if continuity == 'both' else 'Era is required.')
+    if continuity in ('legends', 'both') and not legends_era_raw:
+        errors.append('Legends Era is required.' if continuity == 'both' else 'Era is required.')
     if not pub_id_raw and not pub_q:
         errors.append('Publisher is required.')
 
     if errors:
-        eras = _get_eras(continuity or initial_continuity)
         return render_template('comics/series_new.html',
                                initial_continuity=initial_continuity,
-                               eras=eras,
+                               canon_eras=_get_canon_eras(),
+                               legends_eras=_get_legends_eras(),
                                series_types=SERIES_TYPES,
                                form=f,
                                errors=errors), 422
 
-    # Resolve era
-    is_timeline_spanning = era_id_raw == 'multiple'
-    era_id = None if is_timeline_spanning else int(era_id_raw)
+    # Resolve eras — 'multiple' value sets is_timeline_spanning
+    is_timeline_spanning = (canon_era_raw == 'multiple' or legends_era_raw == 'multiple')
+    canon_era_id   = None if (not canon_era_raw or canon_era_raw == 'multiple') else int(canon_era_raw)
+    legends_era_id = None if (not legends_era_raw or legends_era_raw == 'multiple') else int(legends_era_raw)
 
     # Resolve publisher — use existing if found, else create
     if pub_id_raw:
@@ -175,7 +182,8 @@ def _handle_series_create(initial_continuity):
         title=title,
         series_type=series_type,
         continuity=continuity,
-        era_id=era_id,
+        canon_era_id=canon_era_id,
+        legends_era_id=legends_era_id,
         is_timeline_spanning=is_timeline_spanning,
         publisher_id=publisher_id,
         imprint_id=imprint_id,
@@ -190,7 +198,8 @@ def _handle_series_create(initial_continuity):
                          'title': series.title,
                          'series_type': series.series_type,
                          'continuity': series.continuity,
-                         'era_id': series.era_id,
+                         'canon_era_id': series.canon_era_id,
+                         'legends_era_id': series.legends_era_id,
                          'is_timeline_spanning': series.is_timeline_spanning,
                          'publisher_id': series.publisher_id,
                          'imprint_id': series.imprint_id,
@@ -236,6 +245,8 @@ def series_hub(series_id):
 # ------------------------------------------------------------------
 
 def _issue_form_context(series):
+    story_depts   = Department.query.filter_by(pillar='comics', scope='story').order_by(Department.id).all()
+    product_depts = Department.query.filter_by(pillar='comics', scope='product').order_by(Department.id).all()
     return dict(
         series=series,
         designations=ISSUE_DESIGNATIONS,
@@ -243,6 +254,8 @@ def _issue_form_context(series):
         trim_sizes=TRIM_SIZES,
         age_ratings=AGE_RATINGS,
         format_defaults=FORMAT_DEFAULTS,
+        story_depts=story_depts,
+        product_depts=product_depts,
     )
 
 
@@ -268,6 +281,147 @@ def issue_new(series_id):
     return render_template('comics/issue_new.html',
                            form={}, errors=[],
                            **_issue_form_context(series))
+
+
+def _resolve_creator(creator_id, creator_q):
+    if creator_id:
+        c = db.session.get(Creator, creator_id)
+        if c:
+            return c
+    if not creator_q:
+        return None
+    c = Creator.query.filter(db.func.lower(Creator.name) == creator_q.lower()).first()
+    if c:
+        return c
+    c = Creator(name=creator_q, slug=make_unique_slug(creator_q, Creator))
+    db.session.add(c)
+    db.session.flush()
+    log_contribution('create', 'creator', c.id, new_value={'name': c.name, 'slug': c.slug})
+    return c
+
+
+def _resolve_role(role_name, dept_id):
+    if not role_name or not dept_id:
+        return
+    exists = Role.query.filter(
+        Role.department_id == dept_id,
+        db.func.lower(Role.name) == role_name.lower()
+    ).first()
+    if not exists:
+        db.session.add(Role(name=role_name, department_id=dept_id))
+        db.session.flush()
+
+
+def _resolve_character(character_id, character_q):
+    if character_id:
+        c = db.session.get(Character, character_id)
+        if c:
+            return c
+    if not character_q:
+        return None
+    c = Character.query.filter(
+        db.func.lower(Character.baseline_name) == character_q.lower()
+    ).first()
+    if c:
+        return c
+    c = Character(baseline_name=character_q,
+                  slug=make_unique_slug(character_q, Character),
+                  continuity='both')
+    db.session.add(c)
+    db.session.flush()
+    log_contribution('create', 'character', c.id,
+                     new_value={'baseline_name': c.baseline_name,
+                                'slug': c.slug, 'continuity': c.continuity})
+    return c
+
+
+def _save_story_breakdown(issue, story_data):
+    # Issue credits — product scope
+    for ic in story_data.get('issue_credits', []):
+        dept_id   = ic.get('dept_id')
+        role_name = (ic.get('role') or '').strip()
+        creator   = _resolve_creator(ic.get('creator_id'), (ic.get('creator_q') or '').strip())
+        if not creator or not dept_id:
+            continue
+        _resolve_role(role_name, dept_id)
+        credit = Credit(creator_id=creator.id, issue_id=issue.id,
+                        department_id=dept_id, role_name=role_name,
+                        scope='product')
+        db.session.add(credit)
+        db.session.flush()
+        log_contribution('create', 'credit', credit.id,
+                         new_value={'creator_id': credit.creator_id,
+                                    'issue_id': credit.issue_id,
+                                    'department_id': credit.department_id,
+                                    'role_name': credit.role_name,
+                                    'scope': credit.scope})
+
+    # Segments
+    for seg_data in story_data.get('segments', []):
+        segment = ComicSegment(
+            issue_id=issue.id,
+            sort_order=seg_data.get('sort_order', 1),
+            segment_type=seg_data.get('segment_type') or None,
+            reproduction='original',
+            title=seg_data.get('title') or None,
+            colors=seg_data.get('colors') or None,
+            pages=seg_data.get('pages') or None,
+        )
+        db.session.add(segment)
+        db.session.flush()
+        log_contribution('create', 'comic_segment', segment.id,
+                         new_value={'issue_id': segment.issue_id,
+                                    'sort_order': segment.sort_order,
+                                    'segment_type': segment.segment_type,
+                                    'title': segment.title})
+
+        # Story credits — story scope
+        for sc in seg_data.get('credits', []):
+            dept_id   = sc.get('dept_id')
+            role_name = (sc.get('role') or '').strip()
+            creator   = _resolve_creator(sc.get('creator_id'), (sc.get('creator_q') or '').strip())
+            if not creator or not dept_id:
+                continue
+            _resolve_role(role_name, dept_id)
+            credit = Credit(creator_id=creator.id, segment_id=segment.id,
+                            department_id=dept_id, role_name=role_name,
+                            scope='story')
+            db.session.add(credit)
+            db.session.flush()
+            log_contribution('create', 'credit', credit.id,
+                             new_value={'creator_id': credit.creator_id,
+                                        'segment_id': credit.segment_id,
+                                        'department_id': credit.department_id,
+                                        'role_name': credit.role_name,
+                                        'scope': credit.scope})
+
+        # Character appearances
+        for cd in seg_data.get('characters', []):
+            app_type = (cd.get('appearance_type') or '').strip()
+            if app_type not in ('main', 'supporting', 'cameo', 'vision'):
+                continue
+            character = _resolve_character(cd.get('character_id'),
+                                           (cd.get('character_q') or '').strip())
+            if not character:
+                continue
+            persona_id = cd.get('persona_id')
+            if persona_id:
+                persona = db.session.get(CharacterPersona, persona_id)
+                if not persona or persona.baseline_character_id != character.id:
+                    persona_id = None
+            appearance = CharacterAppearance(
+                segment_id=segment.id,
+                character_id=character.id,
+                persona_id=persona_id,
+                appearance_type=app_type,
+            )
+            db.session.add(appearance)
+            db.session.flush()
+            log_contribution('create', 'character_appearance', appearance.id,
+                             new_value={'segment_id': appearance.segment_id,
+                                        'character_id': appearance.character_id,
+                                        'persona_id': appearance.persona_id,
+                                        'appearance_type': appearance.appearance_type})
 
 
 def _save_cover(file):
@@ -298,6 +452,15 @@ def _handle_issue_create(series):
     upc_isbn         = f.get('upc_isbn', '').strip() or None
     wookieepedia_url = f.get('wookieepedia_url', '').strip() or None
 
+    # Parse story breakdown
+    story_data = None
+    story_raw = f.get('story_json', '').strip()
+    if story_raw:
+        try:
+            story_data = _json.loads(story_raw)
+        except (ValueError, TypeError):
+            errors.append('Story breakdown data was malformed. Please try again.')
+
     valid_designations = {v for v, _ in ISSUE_DESIGNATIONS}
     valid_bindings     = {v for v, _ in PHYSICAL_BINDINGS}
 
@@ -312,6 +475,10 @@ def _handle_issue_create(series):
         errors.append('Issue Type is required.')
     if physical_binding not in valid_bindings:
         errors.append('Format is required.')
+
+    # Segment count — strict server-side enforcement
+    if not story_data or not story_data.get('segments'):
+        errors.append('At least one segment is required.')
 
     # Validate designation is allowed for this series type
     if designation in valid_designations:
@@ -410,6 +577,8 @@ def _handle_issue_create(series):
                          'physical_binding': issue.physical_binding,
                          'cover_image':      issue.cover_image,
                      })
+
+    _save_story_breakdown(issue, story_data)
     db.session.commit()
 
     return redirect(f'/comics/series/{series.id}')

@@ -20,12 +20,27 @@
           {{ series.continuity | title }}
         </span>
 
-        {% if series.era %}
-        <span class="text-gray-700">&middot;</span>
-        <span>{{ series.era.name }}</span>
-        {% elif series.is_timeline_spanning %}
-        <span class="text-gray-700">&middot;</span>
-        <span>Multiple Eras</span>
+        {% if series.continuity == 'both' %}
+          {% if series.canon_era or series.legends_era %}
+          <span class="text-gray-700">&middot;</span>
+          <span>
+            {% if series.canon_era %}{{ series.canon_era.name }}{% else %}Multiple Eras{% endif %}
+            &nbsp;/&nbsp;
+            {% if series.legends_era %}{{ series.legends_era.name }}{% else %}Multiple Eras{% endif %}
+          </span>
+          {% elif series.is_timeline_spanning %}
+          <span class="text-gray-700">&middot;</span>
+          <span>Multiple Eras</span>
+          {% endif %}
+        {% else %}
+          {% set era = series.canon_era or series.legends_era %}
+          {% if era %}
+          <span class="text-gray-700">&middot;</span>
+          <span>{{ era.name }}</span>
+          {% elif series.is_timeline_spanning %}
+          <span class="text-gray-700">&middot;</span>
+          <span>Multiple Eras</span>
+          {% endif %}
         {% endif %}
 
         {% if series.start_year %}

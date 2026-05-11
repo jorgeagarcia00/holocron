@@ -33,6 +33,37 @@ COMICS_DEPARTMENTS = [
     ('Lucasfilm',  'comics', 'product'),
 ]
 
+# (department_name, role_name) — seeded on first run
+COMICS_ROLES = [
+    ('Writers',    'Writer'),
+    ('Writers',    'Script'),
+    ('Writers',    'Plot'),
+    ('Writers',    'Story'),
+    ('Writers',    'Dialogue'),
+    ('Artists',    'Penciler'),
+    ('Artists',    'Inker'),
+    ('Artists',    'Artist'),
+    ('Artists',    'Colorist'),
+    ('Artists',    'Letterer'),
+    ('Editors',    'Editor'),
+    ('Editors',    'Assistant Editor'),
+    ('Editors',    'Associate Editor'),
+    ('Editors',    'Senior Editor'),
+    ('Cover',      'Cover Artist'),
+    ('Cover',      'Cover Penciler'),
+    ('Cover',      'Cover Inker'),
+    ('Cover',      'Cover Colorist'),
+    ('Production', 'Editor-in-Chief'),
+    ('Production', 'Collection Editor'),
+    ('Production', 'Book Designer'),
+    ('Production', 'Production Manager'),
+    ('Production', 'Senior Editor'),
+    ('Lucasfilm',  'Lucasfilm Editor'),
+    ('Lucasfilm',  'Lucasfilm Art Director'),
+    ('Lucasfilm',  'Licensing Manager'),
+    ('Lucasfilm',  'Story Group Consultant'),
+]
+
 
 def _tables_exist(engine, *names):
     existing = sa_inspect(engine).get_table_names()
@@ -46,7 +77,7 @@ def _row_count(table_name):
 
 def seed_all(flask_app):
     from app.models.preferences import UserPreferences
-    from app.models.reference import Era, Department
+    from app.models.reference import Era, Department, Role
 
     with flask_app.app_context():
         engine = db.engine
@@ -66,4 +97,13 @@ def seed_all(flask_app):
             if _row_count('department') == 0:
                 for name, pillar, scope in COMICS_DEPARTMENTS:
                     db.session.add(Department(name=name, pillar=pillar, scope=scope))
+                db.session.commit()
+
+        if _tables_exist(engine, 'role'):
+            if _row_count('role') == 0:
+                dept_map = {d.name: d.id for d in Department.query.all()}
+                for dept_name, role_name in COMICS_ROLES:
+                    dept_id = dept_map.get(dept_name)
+                    if dept_id:
+                        db.session.add(Role(name=role_name, department_id=dept_id))
                 db.session.commit()
