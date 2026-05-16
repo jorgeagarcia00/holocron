@@ -49,7 +49,7 @@
   </div>
   {% endif %}
 
-  <form method="POST" action="/comics/series/{{ series.id }}/issues/new"
+  <form id="issue-form" method="POST" action="/comics/series/{{ series.id }}/issues/new"
         enctype="multipart/form-data">
 
     <!-- Two-column layout: cover | fields -->
@@ -289,7 +289,10 @@
 
       <!-- Section header -->
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
+        <div>
+          <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
+          <p class="text-xs text-gray-600 mt-0.5">At least one segment required &middot; no individual fields are mandatory</p>
+        </div>
         <div class="flex gap-2">
           <button type="button" disabled
             class="text-xs text-gray-600 border border-gray-800 rounded px-3 py-1.5 cursor-not-allowed select-none"
@@ -313,7 +316,7 @@
             <button type="button" onclick="addCreditRow(this)"
               class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
           </div>
-          <div class="credit-rows space-y-1.5"></div>
+          <div class="credit-rows space-y-1.5 pl-3 border-l border-gray-800/60"></div>
         </div>
         {% endfor %}
       </div>
@@ -472,6 +475,7 @@ const _inp = 'bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm tex
 function addSegment() {
   const container = document.getElementById('segments-container');
   const existing = container.querySelectorAll('[data-seg-idx]');
+  const expanded = existing.length === 0;
   let maxSort = 0;
   existing.forEach(el => { maxSort = Math.max(maxSort, parseInt(el.querySelector('.seg-sort').value) || 0); });
 
@@ -486,28 +490,28 @@ function addSegment() {
         <button type="button" onclick="addCreditRow(this)"
           class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
       </div>
-      <div class="credit-rows space-y-1.5"></div>
+      <div class="credit-rows space-y-1.5 pl-3 border-l border-gray-800/60"></div>
     </div>`).join('');
 
   const block = document.createElement('div');
   block.className = 'border border-gray-700 rounded-lg overflow-hidden';
   block.dataset.segIdx = idx;
   block.innerHTML = `
-    <div class="bg-gray-800/50 px-4 py-2.5 flex items-center gap-3 border-b border-gray-700/60">
-      <span class="text-xs text-gray-600 font-mono shrink-0 select-none">Sort</span>
+    <div class="seg-header bg-gray-800/50 px-4 py-2.5 flex items-center gap-3 border-b border-gray-700/60 cursor-pointer select-none" onclick="toggleSegment(this)">
+      <span class="seg-chevron text-xs text-gray-500 shrink-0 w-3">${expanded ? '▾' : '▸'}</span>
       <input type="number" value="${sort}" min="1"
-        class="seg-sort w-14 text-center ${_inp}">
-      <select class="seg-type flex-1 ${_inp}">${typeOpts}</select>
+        class="seg-sort w-14 text-center ${_inp}" onclick="event.stopPropagation()">
+      <input type="text" placeholder="Title (optional)" class="seg-title flex-1 ${_inp}" onclick="event.stopPropagation()">
+      <select class="seg-type w-40 ${_inp}" onclick="event.stopPropagation()">${typeOpts}</select>
       <span class="text-xs text-gray-500 border border-gray-700 rounded px-2 py-1.5 shrink-0 select-none bg-gray-900/40">Original</span>
-      <select class="seg-colors w-36 ${_inp}">${colorOpts}</select>
-      <button type="button" onclick="removeSegment(this)"
-        class="ml-auto text-gray-700 hover:text-red-400 text-xs transition-colors shrink-0">Remove</button>
+      <button type="button" onclick="event.stopPropagation(); removeSegment(this)"
+        class="text-gray-700 hover:text-red-400 text-xs transition-colors shrink-0">Remove</button>
     </div>
-    <div class="p-4 space-y-4 bg-gray-950/30">
+    <div class="seg-body p-4 space-y-4 bg-gray-950/30${expanded ? '' : ' hidden'}">
       <div class="grid grid-cols-4 gap-3">
         <div class="col-span-3">
-          <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Title</label>
-          <input type="text" placeholder="Story title (optional)" class="seg-title w-full ${_inp}">
+          <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Colors</label>
+          <select class="seg-colors w-full ${_inp}">${colorOpts}</select>
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-600 uppercase tracking-wider mb-1">Pages</label>
@@ -531,6 +535,13 @@ function addSegment() {
 function removeSegment(btn) {
   btn.closest('[data-seg-idx]').remove();
   _updateNoSegMsg();
+}
+
+function toggleSegment(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.seg-chevron');
+  const nowHidden = body.classList.toggle('hidden');
+  chevron.textContent = nowHidden ? '▸' : '▾';
 }
 
 function _updateNoSegMsg() {
@@ -759,7 +770,7 @@ function gatherStoryJson() {
 }
 
 // ── Form submit ───────────────────────────────────────────────────
-document.querySelector('form').addEventListener('submit', function (e) {
+document.getElementById('issue-form').addEventListener('submit', function (e) {
   // Quill
   const html = quill.root.innerHTML;
   synopsisInput.value = (html === '<p><br></p>') ? '' : html;

@@ -18,7 +18,8 @@
       "Bash(where tailwindcss *)",
       "Bash(npx --yes tailwindcss@3 --help)",
       "PowerShell(Get-Command *)",
-      "PowerShell(npm list *)"
+      "PowerShell(npm list *)",
+      "Bash(uv run *)"
     ]
   }
 }
