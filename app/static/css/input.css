@@ -5,3 +5,53 @@
 dialog::backdrop {
   background: rgba(0, 0, 0, 0.7);
 }
+
+@layer components {
+  /* Floating-label field group — wrapper for every labelled form field */
+  .fl-group {
+    @apply relative;
+  }
+
+  /* Label sits centered on the top border of the field, bg clips the border behind it */
+  .fl-label {
+    @apply absolute top-0 left-3 -translate-y-1/2
+           bg-gray-950 px-1
+           text-xs font-medium text-gray-400 uppercase tracking-wider leading-none
+           whitespace-nowrap pointer-events-none z-10;
+  }
+
+  /* Text / number / date / url / month inputs */
+  .fl-input {
+    @apply w-full bg-gray-900 border border-gray-700 rounded px-3 py-2
+           text-sm text-gray-100 placeholder-gray-600
+           focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30
+           transition-colors;
+  }
+
+  /* Select dropdowns */
+  .fl-select {
+    @apply w-full bg-gray-900 border border-gray-700 rounded px-3 py-2
+           text-sm text-gray-100
+           focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30
+           transition-colors;
+  }
+
+  /* Textareas */
+  .fl-textarea {
+    @apply w-full bg-gray-900 border border-gray-700 rounded px-3 py-2
+           text-sm text-gray-100 placeholder-gray-600
+           focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30
+           transition-colors resize-y;
+  }
+
+  /* Read-only inherited display values */
+  .fl-static {
+    @apply w-full bg-gray-900/40 border border-gray-800 rounded px-3 py-2
+           text-sm text-gray-400 select-none truncate;
+  }
+
+  /* Required field asterisk */
+  .fl-req {
+    @apply text-red-500;
+  }
+}

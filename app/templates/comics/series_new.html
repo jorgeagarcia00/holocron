@@ -22,22 +22,16 @@
   <form method="POST" action="/comics/series/new" class="space-y-6">
 
     <!-- Title -->
-    <div>
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-        Title <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-      </label>
+    <div class="fl-group">
+      <label class="fl-label">Title <span class="fl-req">*</span></label>
       <input type="text" name="title" value="{{ form.title or '' }}"
-        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
-        required autofocus>
+        class="fl-input" required autofocus>
     </div>
 
     <!-- Series Type -->
-    <div>
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-        Series Type <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-      </label>
-      <select name="series_type"
-        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+    <div class="fl-group">
+      <label class="fl-label">Series Type <span class="fl-req">*</span></label>
+      <select name="series_type" class="fl-select">
         {% for val, label in series_types %}
         <option value="{{ val }}" {% if (form.series_type or 'regular_series') == val %}selected{% endif %}>
           {{ label }}
@@ -49,26 +43,20 @@
     <!-- Continuity + Era -->
     {% set sel_continuity = form.continuity or initial_continuity %}
     <div class="grid grid-cols-2 gap-4 items-start">
-      <div>
-        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Continuity <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-        </label>
-        <select name="continuity" id="continuity-select"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
+      <div class="fl-group">
+        <label class="fl-label">Continuity <span class="fl-req">*</span></label>
+        <select name="continuity" id="continuity-select" class="fl-select"
           onchange="updateEraFields(this.value)">
           <option value="canon"   {% if sel_continuity == 'canon'   %}selected{% endif %}>Canon</option>
           <option value="legends" {% if sel_continuity == 'legends' %}selected{% endif %}>Legends</option>
           <option value="both"    {% if sel_continuity == 'both'    %}selected{% endif %}>Both</option>
         </select>
       </div>
-      <div class="space-y-3">
+      <div class="space-y-5">
         <!-- Canon Era — shown for canon + both -->
-        <div id="canon-era-group">
-          <label id="canon-era-label" class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-            Era <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-          </label>
-          <select name="canon_era_id" id="canon-era-select"
-            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+        <div id="canon-era-group" class="fl-group">
+          <label id="canon-era-label" class="fl-label">Era <span class="fl-req">*</span></label>
+          <select name="canon_era_id" id="canon-era-select" class="fl-select">
             <option value="">Select era…</option>
             {% for era in canon_eras %}
             <option value="{{ era.id }}"
@@ -82,13 +70,9 @@
           </select>
         </div>
         <!-- Legends Era — shown for legends + both -->
-        <div id="legends-era-group">
-          <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-            <span id="legends-era-label-text">Era</span>
-            <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-          </label>
-          <select name="legends_era_id" id="legends-era-select"
-            class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+        <div id="legends-era-group" class="fl-group">
+          <label class="fl-label"><span id="legends-era-label-text">Era</span> <span class="fl-req">*</span></label>
+          <select name="legends_era_id" id="legends-era-select" class="fl-select">
             <option value="">Select era…</option>
             {% for era in legends_eras %}
             <option value="{{ era.id }}"
@@ -105,74 +89,61 @@
     </div>
 
     <!-- Publisher -->
-    <div>
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-        Publisher <span class="text-yellow-400 normal-case font-normal tracking-normal">required</span>
-      </label>
-      <div class="autocomplete-widget relative">
-        <input type="text" id="publisher_q" name="publisher_q"
-          value="{{ form.publisher_q or '' }}"
-          placeholder="Search or type to create…"
-          autocomplete="off"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
-          oninput="document.getElementById('publisher_id').value=''"
-          hx-get="/api/autocomplete"
-          hx-trigger="input changed delay:250ms"
-          hx-target="#publisher-dropdown"
-          hx-vals='{"type": "publisher", "widget": "publisher"}'>
-        <input type="hidden" name="publisher_id" id="publisher_id"
-          value="{{ form.publisher_id or '' }}">
-        <div id="publisher-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
-      </div>
+    <div class="fl-group autocomplete-widget relative">
+      <label class="fl-label">Publisher <span class="fl-req">*</span></label>
+      <input type="text" id="publisher_q" name="publisher_q"
+        value="{{ form.publisher_q or '' }}"
+        placeholder="Search or type to create…"
+        autocomplete="off"
+        class="fl-input"
+        oninput="document.getElementById('publisher_id').value=''"
+        hx-get="/api/autocomplete"
+        hx-trigger="input changed delay:250ms"
+        hx-target="#publisher-dropdown"
+        hx-vals='{"type": "publisher", "widget": "publisher"}'>
+      <input type="hidden" name="publisher_id" id="publisher_id"
+        value="{{ form.publisher_id or '' }}">
+      <div id="publisher-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
     </div>
 
     <!-- Imprint -->
-    <div>
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-        Imprint <span class="text-gray-600 normal-case font-normal tracking-normal">optional</span>
-      </label>
-      <div class="autocomplete-widget relative">
-        <input type="text" id="imprint_q" name="imprint_q"
-          value="{{ form.imprint_q or '' }}"
-          placeholder="Search or type to create…"
-          autocomplete="off"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors"
-          oninput="document.getElementById('imprint_id').value=''"
-          hx-get="/api/autocomplete"
-          hx-trigger="input changed delay:250ms"
-          hx-target="#imprint-dropdown"
-          hx-vals='{"type": "imprint", "widget": "imprint"}'>
-        <input type="hidden" name="imprint_id" id="imprint_id"
-          value="{{ form.imprint_id or '' }}">
-        <div id="imprint-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
-      </div>
+    <div class="fl-group autocomplete-widget relative">
+      <label class="fl-label">Imprint</label>
+      <input type="text" id="imprint_q" name="imprint_q"
+        value="{{ form.imprint_q or '' }}"
+        placeholder="Search or type to create…"
+        autocomplete="off"
+        class="fl-input"
+        oninput="document.getElementById('imprint_id').value=''"
+        hx-get="/api/autocomplete"
+        hx-trigger="input changed delay:250ms"
+        hx-target="#imprint-dropdown"
+        hx-vals='{"type": "imprint", "widget": "imprint"}'>
+      <input type="hidden" name="imprint_id" id="imprint_id"
+        value="{{ form.imprint_id or '' }}">
+      <div id="imprint-dropdown" class="absolute left-0 right-0 top-full z-50"></div>
     </div>
 
     <!-- Start Year / End Year -->
     <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          Start Year
-        </label>
+      <div class="fl-group">
+        <label class="fl-label">Start Year</label>
         <input type="number" name="start_year" value="{{ form.start_year or '' }}"
           min="1961" max="2099" placeholder="e.g. 2015"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          class="fl-input">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">
-          End Year <span class="text-gray-600 normal-case font-normal tracking-normal">blank if ongoing</span>
-        </label>
+      <div class="fl-group">
+        <label class="fl-label">End Year</label>
         <input type="number" name="end_year" value="{{ form.end_year or '' }}"
           min="1961" max="2099" placeholder="e.g. 2017"
-          class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors">
+          class="fl-input">
       </div>
     </div>
 
     <!-- Synopsis -->
-    <div>
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Synopsis</label>
-      <textarea name="synopsis" rows="4"
-        class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400/30 transition-colors resize-y">{{ form.synopsis or '' }}</textarea>
+    <div class="fl-group">
+      <label class="fl-label">Synopsis</label>
+      <textarea name="synopsis" rows="4" class="fl-textarea">{{ form.synopsis or '' }}</textarea>
     </div>
 
     <!-- Actions -->
@@ -191,7 +162,7 @@
 {% block extra_scripts %}
 <script>
   function updateEraFields(continuity) {
-    const canonGroup  = document.getElementById('canon-era-group');
+    const canonGroup   = document.getElementById('canon-era-group');
     const legendsGroup = document.getElementById('legends-era-group');
     const canonSelect  = document.getElementById('canon-era-select');
     const legendsSelect = document.getElementById('legends-era-select');
@@ -222,7 +193,6 @@
     }
   }
 
-  // Run on load to match the pre-selected continuity value
   updateEraFields(document.getElementById('continuity-select').value);
 </script>
 {% endblock %}
