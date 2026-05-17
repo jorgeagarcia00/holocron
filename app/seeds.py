@@ -33,35 +33,37 @@ COMICS_DEPARTMENTS = [
     ('Lucasfilm',  'comics', 'product'),
 ]
 
-# (department_name, role_name) — seeded on first run
+# (department_name, role_name, sort_order) — seeded on first run
 COMICS_ROLES = [
-    ('Writers',    'Writer'),
-    ('Writers',    'Script'),
-    ('Writers',    'Plot'),
-    ('Writers',    'Story'),
-    ('Writers',    'Dialogue'),
-    ('Artists',    'Penciler'),
-    ('Artists',    'Inker'),
-    ('Artists',    'Artist'),
-    ('Artists',    'Colorist'),
-    ('Artists',    'Letterer'),
-    ('Editors',    'Editor'),
-    ('Editors',    'Assistant Editor'),
-    ('Editors',    'Associate Editor'),
-    ('Editors',    'Senior Editor'),
-    ('Cover',      'Cover Artist'),
-    ('Cover',      'Cover Penciler'),
-    ('Cover',      'Cover Inker'),
-    ('Cover',      'Cover Colorist'),
-    ('Production', 'Editor-in-Chief'),
-    ('Production', 'Collection Editor'),
-    ('Production', 'Book Designer'),
-    ('Production', 'Production Manager'),
-    ('Production', 'Senior Editor'),
-    ('Lucasfilm',  'Lucasfilm Editor'),
-    ('Lucasfilm',  'Lucasfilm Art Director'),
-    ('Lucasfilm',  'Licensing Manager'),
-    ('Lucasfilm',  'Story Group Consultant'),
+    ('Writers',    'Writer',              10),
+    ('Writers',    'Script',              20),
+    ('Writers',    'Plot',                30),
+    ('Writers',    'Story',               40),
+    ('Writers',    'Dialogue',            50),
+    ('Artists',    'Penciler',            10),
+    ('Artists',    'Inker',               20),
+    ('Artists',    'Artist',              30),
+    ('Artists',    'Colorist',            40),
+    ('Artists',    'Letterer',            50),
+    ('Editors',    'Editor',              10),
+    ('Editors',    'Senior Editor',       20),
+    ('Editors',    'Associate Editor',    30),
+    ('Editors',    'Assistant Editor',    40),
+    ('Cover',      'Cover Artist',        10),
+    ('Cover',      'Cover Penciler',      20),
+    ('Cover',      'Cover Inker',         30),
+    ('Cover',      'Cover Colorist',      40),
+    ('Production', 'Editor-in-Chief',     10),
+    ('Production', 'Collection Editor',   20),
+    ('Production', 'Book Designer',       30),
+    ('Production', 'Production Manager',  40),
+    ('Lucasfilm',  'Lucasfilm Editor',    10),
+    ('Lucasfilm',  'Lucasfilm Art Director', 20),
+    ('Lucasfilm',  'Creative Director',   30),
+    ('Lucasfilm',  'Art Director',        40),
+    ('Lucasfilm',  'Story Group',         50),
+    ('Lucasfilm',  'Creative Art Manager', 60),
+    ('Lucasfilm',  'Licensing Manager',   70),
 ]
 
 
@@ -102,8 +104,9 @@ def seed_all(flask_app):
         if _tables_exist(engine, 'role'):
             if _row_count('role') == 0:
                 dept_map = {d.name: d.id for d in Department.query.all()}
-                for dept_name, role_name in COMICS_ROLES:
+                for dept_name, role_name, sort_order in COMICS_ROLES:
                     dept_id = dept_map.get(dept_name)
                     if dept_id:
-                        db.session.add(Role(name=role_name, department_id=dept_id))
+                        db.session.add(Role(name=role_name, department_id=dept_id,
+                                            sort_order=sort_order))
                 db.session.commit()

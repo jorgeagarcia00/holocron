@@ -308,7 +308,10 @@ def _resolve_role(role_name, dept_id):
         db.func.lower(Role.name) == role_name.lower()
     ).first()
     if not exists:
-        db.session.add(Role(name=role_name, department_id=dept_id))
+        max_sort = db.session.query(db.func.max(Role.sort_order)).filter_by(
+            department_id=dept_id).scalar() or 0
+        db.session.add(Role(name=role_name, department_id=dept_id,
+                            sort_order=max_sort + 10))
         db.session.flush()
 
 

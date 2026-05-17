@@ -307,7 +307,8 @@ def roles():
     if not department_id:
         return jsonify([])
 
-    rows = Role.query.filter_by(department_id=department_id).order_by(Role.name).all()
+    rows = Role.query.filter_by(department_id=department_id).order_by(
+        Role.sort_order, Role.name).all()
 
     if not q:
         return jsonify([r.name for r in rows])
