@@ -349,7 +349,8 @@ def _save_story_breakdown(issue, story_data):
         _resolve_role(role_name, dept_id)
         credit = Credit(creator_id=creator.id, issue_id=issue.id,
                         department_id=dept_id, role_name=role_name,
-                        scope='product')
+                        scope='product',
+                        is_uncredited=bool(ic.get('is_uncredited', False)))
         db.session.add(credit)
         db.session.flush()
         log_contribution('create', 'credit', credit.id,
@@ -388,7 +389,8 @@ def _save_story_breakdown(issue, story_data):
             _resolve_role(role_name, dept_id)
             credit = Credit(creator_id=creator.id, segment_id=segment.id,
                             department_id=dept_id, role_name=role_name,
-                            scope='story')
+                            scope='story',
+                            is_uncredited=bool(sc.get('is_uncredited', False)))
             db.session.add(credit)
             db.session.flush()
             log_contribution('create', 'credit', credit.id,

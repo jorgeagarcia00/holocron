@@ -263,7 +263,7 @@
       <div class="flex items-center justify-between mb-5">
         <div>
           <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-500">Story Breakdown</h2>
-          <p class="text-xs text-gray-600 mt-0.5">At least one segment required &middot; no individual fields are mandatory</p>
+          <p class="text-xs text-gray-600 mt-0.5">At least one segment required · no individual fields are mandatory</p>
         </div>
         <div class="flex gap-2">
           <button type="button" disabled
@@ -274,32 +274,41 @@
         </div>
       </div>
 
-      <!-- Zone 1: Issue Credits -->
-      <div id="issue-credits-zone" class="bg-gray-900/60 border border-gray-700 rounded-lg p-4 mb-6">
-        <div class="mb-4">
-          <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400">Issue Credits</h3>
-          <p class="text-xs text-gray-600 mt-0.5">Product scope · does not transfer on segment import</p>
-        </div>
-        {% for dept in product_depts %}
-        <div class="{% if not loop.last %}mb-4 pb-4 border-b border-gray-800/60{% endif %}"
-             data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">{{ dept.name }}</span>
-            <button type="button" onclick="addCreditRow(this)"
-              class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
+      <!-- Rail: left border visually connects all blocks -->
+      <div class="ml-3 pl-5 border-l-2 border-gray-800 space-y-3">
+
+        <!-- Container Credits (collapsed by default) -->
+        <div id="container-credits-block" class="border border-gray-700 rounded-lg">
+          <div id="cc-header"
+            class="flex items-center gap-3 px-4 py-2.5 bg-gray-800/50 cursor-pointer select-none rounded-t-lg rounded-b-lg"
+            onclick="toggleContainerCredits()">
+            <span id="cc-chevron" class="text-xs text-gray-500 shrink-0 w-3">▸</span>
+            <span class="text-xs font-semibold uppercase tracking-widest text-gray-400">Container Credits</span>
           </div>
-          <div class="credit-rows space-y-1.5 pl-3 border-l border-gray-800/60"></div>
+          <div id="cc-body" class="hidden border-t border-gray-700/60 p-4 space-y-4 rounded-b-lg">
+            {% for dept in product_depts %}
+            <div class="{% if not loop.last %}pb-4 border-b border-gray-800/60{% endif %}"
+                 data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">{{ dept.name }}</span>
+                <button type="button" onclick="addCreditRow(this)"
+                  class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Credit</button>
+              </div>
+              <div class="credit-rows space-y-1.5 pl-3 border-l border-gray-800/60"></div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
-        {% endfor %}
-      </div>
 
-      <!-- Zone 2: Segment blocks -->
-      <div id="segments-container" class="space-y-4"></div>
+        <!-- Segment blocks (populated by JS) -->
+        <div id="segments-container" class="space-y-3"></div>
 
-      <!-- No-segments validation message (shown on failed submit) -->
-      <div id="no-segments-msg" class="hidden border border-dashed border-red-900/50 rounded-lg p-8 text-center mt-4">
-        <p class="text-red-600 text-sm">At least one segment is required to save the issue.</p>
-      </div>
+        <!-- No-segments validation message (shown on failed submit) -->
+        <div id="no-segments-msg" class="hidden border border-dashed border-red-900/50 rounded-lg p-8 text-center">
+          <p class="text-red-600 text-sm">At least one segment is required to save the issue.</p>
+        </div>
+
+      </div><!-- end rail -->
 
       <!-- Serialized story data — populated by JS on submit -->
       <input type="hidden" name="story_json" id="story-json-input">
@@ -324,6 +333,27 @@
     </div>
 
   </form>
+
+  <!-- Credit attribute modal (shared, one instance) -->
+  <dialog id="credit-attr-modal"
+    class="bg-gray-900 text-gray-100 rounded-xl shadow-2xl w-full max-w-xs p-0 border border-gray-700">
+    <div class="p-5 flex flex-col gap-4">
+      <h3 class="text-sm font-semibold text-gray-100">Credit Attributes</h3>
+      <label class="flex items-center gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" id="attr-is-uncredited"
+          class="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-yellow-400">
+        <span class="text-sm text-gray-300">Is Uncredited</span>
+      </label>
+      <div class="flex gap-3 pt-1 border-t border-gray-800">
+        <button type="button" onclick="saveAttr()"
+          class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-xs px-4 py-1.5 rounded transition-colors">
+          Apply
+        </button>
+        <button type="button" onclick="closeAttr()"
+          class="text-sm text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </dialog>
 </div>
 {% endblock %}
 
@@ -424,6 +454,7 @@ function addLink() {
 // Story Breakdown
 // ═════════════════════════════════════════════════════════════════
 
+const ISSUE_CONTINUITY = {{ series.continuity | tojson }};
 const _deptMeta = JSON.parse(document.getElementById('dept-data').textContent);
 const STORY_DEPTS = _deptMeta.story.map((id, i) => ({ id, name: _deptMeta.storyNames[i] }));
 
@@ -438,10 +469,19 @@ const SEG_COLORS = [
 ];
 
 let _segIdx = 0;
-let _credIdx = 0;
 
 // ── Shared input style ────────────────────────────────────────────
 const _inp = 'bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors';
+
+// ── Container Credits toggle ──────────────────────────────────────
+function toggleContainerCredits() {
+  const body = document.getElementById('cc-body');
+  const chevron = document.getElementById('cc-chevron');
+  const header = document.getElementById('cc-header');
+  const nowHidden = body.classList.toggle('hidden');
+  chevron.textContent = nowHidden ? '▸' : '▾';
+  header.classList.toggle('rounded-b-lg', nowHidden);
+}
 
 // ── Segment management ────────────────────────────────────────────
 function addSegment() {
@@ -466,10 +506,10 @@ function addSegment() {
     </div>`).join('');
 
   const block = document.createElement('div');
-  block.className = 'border border-gray-700 rounded-lg overflow-hidden';
+  block.className = 'border border-gray-700 rounded-lg';
   block.dataset.segIdx = idx;
   block.innerHTML = `
-    <div class="seg-header bg-gray-800/50 px-4 py-2.5 flex items-center gap-3 border-b border-gray-700/60 cursor-pointer select-none" onclick="toggleSegment(this)">
+    <div class="seg-header bg-gray-800/50 px-4 py-2.5 flex items-center gap-3 cursor-pointer select-none rounded-t-lg${expanded ? '' : ' rounded-b-lg'}" onclick="toggleSegment(this)">
       <span class="seg-chevron text-xs text-gray-500 shrink-0 w-3">${expanded ? '▾' : '▸'}</span>
       <input type="number" value="${sort}" min="1"
         class="seg-sort w-14 text-center ${_inp}" onclick="event.stopPropagation()">
@@ -479,21 +519,24 @@ function addSegment() {
       <button type="button" onclick="event.stopPropagation(); removeSegment(this)"
         class="text-gray-700 hover:text-red-400 text-xs transition-colors shrink-0">Remove</button>
     </div>
-    <div class="seg-body p-4 space-y-4 bg-gray-950/30${expanded ? '' : ' hidden'}">
-      <div class="grid grid-cols-4 gap-3">
+    <div class="seg-body p-4 space-y-4 bg-gray-950/30 rounded-b-lg${expanded ? '' : ' hidden'}">
+      <div class="grid grid-cols-5 gap-3">
         <div class="col-span-3 fl-group">
           <label class="fl-label">Colors</label>
           <select class="seg-colors fl-select">${colorOpts}</select>
         </div>
-        <div class="fl-group">
+        <div class="col-span-2 fl-group">
           <label class="fl-label">Pages</label>
           <input type="number" placeholder="22" min="1" class="seg-pages fl-input">
         </div>
       </div>
-      <div class="space-y-3 pt-1">${deptSections}</div>
+      <div class="space-y-3 pt-1">
+        <span class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Credits</span>
+        ${deptSections}
+      </div>
       <div class="char-section pt-1">
         <div class="flex items-center justify-between mb-1.5">
-          <span class="text-xs font-medium text-gray-600 uppercase tracking-wider">Characters</span>
+          <span class="text-xs font-medium text-gray-500 uppercase tracking-wider">Characters</span>
           <button type="button" onclick="addCharRow(this)"
             class="text-xs text-yellow-400 hover:text-yellow-300 transition-colors">+ Add Character</button>
         </div>
@@ -514,6 +557,7 @@ function toggleSegment(header) {
   const chevron = header.querySelector('.seg-chevron');
   const nowHidden = body.classList.toggle('hidden');
   chevron.textContent = nowHidden ? '▸' : '▾';
+  header.classList.toggle('rounded-b-lg', nowHidden);
 }
 
 function _updateNoSegMsg() {
@@ -525,26 +569,49 @@ function _updateNoSegMsg() {
 function addCreditRow(btn) {
   const deptEl = btn.closest('[data-dept-id]');
   const deptId = deptEl.dataset.deptId;
-  const cid = _credIdx++;
   const row = document.createElement('div');
   row.className = 'credit-row flex items-center gap-2';
+  row.dataset.isUncredited = 'false';
   row.innerHTML = `
     <div class="flex-1 sb-autocomplete relative">
       <input type="text" placeholder="Creator name…" autocomplete="off"
         class="creator-q w-full ${_inp}" oninput="creatorSearch(this)">
       <input type="hidden" class="creator-id">
-      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+      <div class="sb-drop absolute inset-x-0 top-full z-[9999]"></div>
     </div>
     <div class="role-wrapper relative w-44">
       <input type="text" placeholder="Role…" autocomplete="off"
         data-dept-id="${deptId}"
         class="role-q w-full ${_inp}"
         oninput="roleSearch(this)" onfocus="roleSearch(this)">
-      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+      <div class="sb-drop absolute inset-x-0 top-full z-[9999]"></div>
     </div>
+    <button type="button" onclick="openAttr(this)"
+      class="attr-btn text-gray-500 hover:text-gray-300 text-sm leading-none shrink-0 px-1 transition-colors" title="Attributes">···</button>
     <button type="button" onclick="this.closest('.credit-row').remove()"
       class="text-gray-600 hover:text-red-400 text-lg leading-none shrink-0 px-1 transition-colors">&times;</button>`;
   deptEl.querySelector('.credit-rows').appendChild(row);
+}
+
+// ── Credit attributes modal ───────────────────────────────────────
+let _currentAttrRow = null;
+function openAttr(btn) {
+  _currentAttrRow = btn.closest('.credit-row');
+  document.getElementById('attr-is-uncredited').checked = _currentAttrRow.dataset.isUncredited === 'true';
+  document.getElementById('credit-attr-modal').showModal();
+}
+function saveAttr() {
+  if (!_currentAttrRow) return;
+  const isUncredited = document.getElementById('attr-is-uncredited').checked;
+  _currentAttrRow.dataset.isUncredited = isUncredited ? 'true' : 'false';
+  const attrBtn = _currentAttrRow.querySelector('.attr-btn');
+  attrBtn.classList.toggle('text-yellow-400', isUncredited);
+  attrBtn.classList.toggle('text-gray-500', !isUncredited);
+  closeAttr();
+}
+function closeAttr() {
+  document.getElementById('credit-attr-modal').close();
+  _currentAttrRow = null;
 }
 
 // ── Character rows ────────────────────────────────────────────────
@@ -557,7 +624,7 @@ function addCharRow(btn) {
         class="char-q w-full ${_inp}" oninput="charSearch(this)">
       <input type="hidden" class="char-id">
       <input type="hidden" class="persona-id">
-      <div class="sb-drop absolute inset-x-0 top-full z-50"></div>
+      <div class="sb-drop absolute inset-x-0 top-full z-[9999]"></div>
     </div>
     <select class="appearance-type w-36 ${_inp}">
       <option value="">— type —</option>
@@ -576,12 +643,16 @@ function _showDrop(dropEl, items, onPick) {
   if (!items.length) { dropEl.innerHTML = ''; return; }
   dropEl._onPick = onPick;
   dropEl._items  = items;
-  dropEl.innerHTML = items.map((item, i) =>
+  const wrapper = document.createElement('div');
+  wrapper.className = 'bg-gray-800 border border-gray-700 rounded-md shadow-xl overflow-hidden';
+  wrapper.innerHTML = items.map((item, i) =>
     `<button type="button" data-idx="${i}"
       class="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 transition-colors block
              ${item._create ? 'text-yellow-400 border-t border-gray-700' : 'text-gray-200'}">
       ${item.label}</button>`
   ).join('');
+  dropEl.innerHTML = '';
+  dropEl.appendChild(wrapper);
 }
 
 document.addEventListener('click', function (e) {
@@ -647,7 +718,7 @@ async function charSearch(input) {
   const drop = input.closest('.sb-autocomplete').querySelector('.sb-drop');
   if (!q) { drop.innerHTML = ''; return; }
   input._t = setTimeout(async () => {
-    const resp = await fetch(`/api/search?type=character_combined&q=${encodeURIComponent(q)}`);
+    const resp = await fetch(`/api/search?type=character_combined&q=${encodeURIComponent(q)}&continuity=${ISSUE_CONTINUITY}`);
     const data = await resp.json();
     const items = data.slice(0, 8).map(r => ({
       label: r.display, display: r.display,
@@ -674,7 +745,7 @@ async function charSearch(input) {
 function gatherStoryJson() {
   const result = { issue_credits: [], segments: [] };
 
-  document.querySelectorAll('#issue-credits-zone [data-dept-id]').forEach(deptEl => {
+  document.querySelectorAll('#container-credits-block [data-dept-id]').forEach(deptEl => {
     const deptId = parseInt(deptEl.dataset.deptId);
     deptEl.querySelectorAll('.credit-row').forEach(row => {
       const creatorQ = row.querySelector('.creator-q').value.trim();
@@ -686,6 +757,7 @@ function gatherStoryJson() {
           creator_id: creatorId ? parseInt(creatorId) : null,
           creator_q: creatorQ,
           role,
+          is_uncredited: row.dataset.isUncredited === 'true',
         });
       }
     });
@@ -715,6 +787,7 @@ function gatherStoryJson() {
             creator_id: creatorId ? parseInt(creatorId) : null,
             creator_q: creatorQ,
             role,
+            is_uncredited: row.dataset.isUncredited === 'true',
           });
         }
       });

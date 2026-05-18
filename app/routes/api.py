@@ -94,14 +94,16 @@ def _search_era(q):
 
 def _search_character_combined(q):
     """Searches both Character baseline names and CharacterPersona names simultaneously.
-    Returns results with character_id and persona_id (null for baseline hits)."""
+    Returns results with character_id and persona_id (null for baseline hits).
+    Optional ?continuity= param soft-sorts matching continuity to the top."""
+    continuity = request.args.get('continuity', '').strip()
+
     chars = Character.query.all()
     personas = CharacterPersona.query.all()
 
     char_map = {c.id: c for c in chars}
     persona_map = {p.id: p for p in personas}
 
-    # Prefix keys so baseline and persona IDs don't collide
     combined = {}
     for c in chars:
         combined[f'c{c.id}'] = c.baseline_name
@@ -111,10 +113,21 @@ def _search_character_combined(q):
     q_lower = q.lower()
     hits = _fuzzy(q, combined)
 
-    # Sort: starts-with first
+    # Primary sort: starts-with first; secondary: soft continuity match
     starts = [(v, s, k) for v, s, k in hits if combined[k].lower().startswith(q_lower)]
     others = [(v, s, k) for v, s, k in hits if not combined[k].lower().startswith(q_lower)]
     ordered = (starts + others)[:10]
+
+    if continuity:
+        def _cont(key):
+            if key.startswith('c'):
+                return char_map[int(key[1:])].continuity
+            return persona_map[int(key[1:])].continuity
+
+        ordered = sorted(ordered, key=lambda t: (
+            0 if _cont(t[2]) == continuity else
+            1 if _cont(t[2]) == 'both' else 2
+        ))
 
     results = []
     for _val, _score, key in ordered:
