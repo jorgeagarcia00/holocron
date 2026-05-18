@@ -82,3 +82,33 @@ Conventions added this session:
 - `SeriesMembership` is intentionally FK-free on `series_id`/`entry_id` — polymorphic join, discriminated by `entry_type`
 
 9 migration files total (4 from Sprint 1 pre-work + Era fix, 8 for Sprint 2 models). All migrations applied cleanly. All 19 tables present.
+
+### Session 3 — 2026-05-17/18 — Sprint 3 UX Polish + Story Breakdown JS Rebuild
+
+**Floating label pattern (site-wide):**
+- Added 7 component classes to `app/static/css/input.css` via `@layer components`: `fl-group`, `fl-label`, `fl-input`, `fl-select`, `fl-textarea`, `fl-static`, `fl-req`
+- Applied to all fields in `series_new.html` and `issue_new.html` (text inputs, selects, textareas, static display divs)
+- Required fields use `<span class="fl-req">*</span>` (red asterisk); `updateIssueNumberField()` JS updated to match
+
+**Role sort_order:**
+- Added `sort_order` column to `Role` model (`app/models/reference.py`)
+- Migration `a8a570bd4199` — adds column, clears and reseeds 29 Comics roles across 6 departments
+- `seeds.py` updated to 3-tuples; `_resolve_role()` in `comics.py` assigns `max + 10` for new user-typed roles
+- `/api/roles` endpoint now orders by `sort_order, name`
+
+**Story Breakdown JS rebuild (`issue_new.html`):**
+- `ISSUE_CONTINUITY` const passed to character search for soft continuity sorting
+- `toggleContainerCredits()` — collapses Container Credits block, toggles `rounded-b-lg` on header
+- `addCreditRow()` — `data-is-uncredited="false"`, `···` attr button, `z-[9999]` on all `.sb-drop`
+- `openAttr()` / `saveAttr()` / `closeAttr()` — `<dialog>` modal sets `is_uncredited` on row dataset; attr btn tints yellow when active
+- `addSegment()` — removed `overflow-hidden`, `rounded-t-lg`/`rounded-b-lg` split, `grid-cols-5` for colors/pages, Credits + Characters section labels
+- `toggleSegment()` — toggles `rounded-b-lg` on header when collapsed
+- `_showDrop()` — opaque `bg-gray-800 border border-gray-700 rounded-md shadow-xl overflow-hidden` wrapper div
+- `gatherStoryJson()` — reads `#container-credits-block`, collects `is_uncredited` on all credit rows
+- `routes/comics.py` — `is_uncredited` written to both product and story Credits on save
+- `routes/api.py` — `_search_character_combined()` soft-sorts by continuity (exact → both → other)
+
+Conventions added:
+- Segment blocks must NOT use `overflow-hidden` — clips absolutely positioned autocomplete dropdowns; use `rounded-t-lg`/`rounded-b-lg` on header/body individually instead
+- `<dialog>` element used for modal; call `.showModal()` / `.close()` — no JS-based show/hide needed
+- Tailwind arbitrary value `z-[9999]` required for Story Breakdown dropdowns to float above all content
