@@ -1,8 +1,8 @@
 # Holocron — Product Requirements Document
-**Version:** 0.3
+**Version:** 0.4
 **Status:** Active — Foundation + Comics Pillar Fully Specced
 **Audience:** Claude Code (Developer)
-**Last Updated:** October 3, 2026
+**Last Updated:** October 8, 2026
  
 ---
  
@@ -13,6 +13,9 @@ This is the authoritative specification for the Holocron application. Before bui
 2. If something is marked **[TBD]**, do not invent a solution — flag it and ask the product owner
 3. If something contradicts CLAUDE.md, this PRD takes precedence for feature-level decisions
 4. After completing any feature, note decisions made that aren't covered here so the PRD can be updated
+5. Nothing is marked [DECIDED] without the product owner's explicit approval
+6. The repo copy of this file is the source of truth; the claude.ai Project holds a snapshot, re-uploaded at the end of each session
+7. LOCG and GCD inform design; they are not copied
 **[DECIDED]** = locked, build exactly as specified
 **[TBD]** = known gap, park and build around it
 **[FUTURE]** = out of scope for current build phase
@@ -44,7 +47,7 @@ Primary reference points:
 - Local only — runs at `localhost:5000`, no internet required at runtime
 - Single user — no authentication, no login screen
 - No external API calls — all data entered manually
-- American releases only — non-US editions out of scope
+- American releases are the primary focus; international editions are added only occasionally, by exception
 - No JavaScript frameworks (React, Vue, etc.)
 ### 1.4 Tech Stack
 **[DECIDED]**
@@ -87,7 +90,9 @@ One entry can belong to multiple Series simultaneously with different position n
  
 A persistent, site-wide filter control in the navigation bar.
  
-**Three states:** Canon / Legends / Both
+**Three states (toggle order):** Canon / Both / Legends
+
+*Both* means simultaneously valid in both Canon and Legends (e.g. the Lucas films) — not a mix. A Both entry is ONE record; editing it updates both continuities. Its only continuity-specific data is the pair of Era fields.
  
 **Persistence:** Remembered across sessions. Stored in `user_preferences` table.
  
@@ -167,6 +172,8 @@ The following have their own database records and browseable pages:
 - **Character** — baseline identity of a named entity
 - **Character Persona** — linked to baseline Character (e.g. Darth Vader → Anakin Skywalker)
 **Inline creation with fuzzy matching:** All reference fields use autocomplete. Near-matches surfaced before creating new records. If no match, new record created on save.
+
+Records created inline (Creator, Publisher, Imprint, Character, Role, link) are created when the form is SAVED, in the same transaction as the log entry — never at the moment of picking "create new". This prevents orphan records.
  
 ### 2.7 Creator Pseudonyms and Uncredited Work
 **[DECIDED]**
@@ -176,6 +183,10 @@ The following have their own database records and browseable pages:
 **Clicking a pseudonym:** Takes you to a distinct Pseudonym Page (own URL) showing all credits under that alias. Prominent link to canonical Creator Page. Canonical Creator Page shows all credits across all aliases unified.
  
 **Uncredited work:** Boolean `is_uncredited` flag on Credit record. Displays inline with role label: `Colorist (Uncredited)`. No separate section.
+
+[TBD — feature to be designed in a design session; creators only. Characters do not have an uncredited flag.]
+
+**Status:** Alias table and `credit.alias_id` exist; entry UI, alias-aware creator search and Pseudonym Pages are not yet built.
  
 **Alias types:** pseudonym / studio name / name variation
  
@@ -198,6 +209,8 @@ Log fields:
 - Diff: old value vs. new value (JSON)
 - Archivist Note: freeform text, optional — user justifies the change
 Visible on each entry page as a collapsible change history.
+
+Series and Issue forms (and later the edit pages) end with an optional Archivist Note text box, saved on the log entry.
  
 ### 2.10 Metadata Conventions
 **[DECIDED]**
@@ -205,6 +218,8 @@ Visible on each entry page as a collapsible change history.
 All metadata defers to official publisher-assigned values. Personal assessments go in Personal Notes. Exception: if a publisher value is a known misprint or error, enter the correct value and document the reason in the Archivist Note field.
  
 Credit role terminology uses standardised catch-all terms rather than literal on-page credit text. Enter "Colorist" rather than "Color Artist" or "Colors by." Consistency and filterability over literal transcription.
+
+Dates display site-wide as "Oct 3, 2026". Cover dates display as month and year only ("Dec 2026"). Forms accept numeric mm/dd/yyyy entry.
  
 ---
  
@@ -249,7 +264,7 @@ Credit role terminology uses standardised catch-all terms rather than literal on
 | Era | Dropdown(s) | Yes | Dependent on Continuity selection. Canon → one Canon era dropdown. Legends → one Legends era dropdown. Both → two dropdowns (Canon Era + Legends Era), both required. See Section 2.3. |
 | Publisher | Autocomplete + inline create | Yes | |
 | Imprint | Autocomplete + inline create | No | |
-| Reading Level | — | — | **[TBD]** — Comics audience rating system differs from Books. Current decision: All Ages / T / T+ / M using official publisher-assigned rating. Field name: `age_rating`. Nullable — older comics predate rating system |
+| Reading Level | — | — | **[TBD]** — Comics audience rating system differs from Books. Current decision: All Ages / T / T+ / M using official publisher-assigned rating. Field name: `age_rating`. Nullable — older comics predate rating system. Column `age_rating` exists but the field is not on the Series form; whether a Series needs its own rating is TBD. |
 | Start Year | Year input | No | |
 | End Year | Year input | No | Blank if ongoing |
 | Synopsis | Long text | No | |
@@ -260,22 +275,25 @@ Credit role terminology uses standardised catch-all terms rather than literal on
 - One-Shot (series containing a single standalone issue — consistent with all other Series types, 
   still requires a Series record)
 - Collection (collected editions only — TPBs, HCs, etc)
-- Graphic Novel (original graphic novels, not collected editions)
+- Graphic Novel (original graphic novels, not collected editions). Graphic Novel series may contain any number of Graphic Novel issues.
 #### 3.2.3 Series Hub Page
  
 Must contain:
 - Series metadata display with Edit button
-- Issue grid — cover thumbnails, title+issue number, full release date (mm/dd/yyyy)
-- Reading progress summary (% of issues completed)
+- Issue grid — cover thumbnails, title+issue number, full release date ("Oct 3, 2026")
+- Reading progress summary (% of issues completed) [not yet built — depends on Personal Tracking, TBD #8]
 - **[Add New Issue]** button
 - **[Bulk Add Issues]** button — **[TBD]**
 - **[Bulk Edit Issues]** button — **[TBD]**
+- Sort options sidebar [TBD — Sprint 4+ browse/filter design]
 Issue grid divided into sections (**design TBD**), each visible only if 
 at least one issue of that type exists:
-  - Issues (Regular Issues, sorted by issue number)
+  - Issues (Regular Issues, sorted by release date; issue number (natural sort: ½=0.5, 1.AU after 1) breaks ties)
   - Annuals (sorted by release date)
   - One-Shots (sorted by release date)
   - Collected Editions (sorted by release date)
+
+Series cover = earliest-release-date Regular Issue with a cover.
 #### 3.2.4 Issue Form
  
 **Layout:** Two-column. Left column: cover image display area (placeholder → live preview on upload) + upload controls directly below image. Right column: all form fields.
@@ -285,7 +303,7 @@ at least one issue of that type exists:
 **Row 1:** Continuity (inherited, static) / Era (inherited, static)
 **Row 2:** Publisher (inherited, static) / Imprint (inherited, static)
 **Row 3:** Series Title (inherited, static) / Issue # (required, text field — handles #0, #½, #1.AU)
-**Row 4:** Release Date (required) / Cover Date (optional)
+**Row 4:** Release Date (required; numeric mm/dd/yyyy entry, displayed "Oct 3, 2026") / Cover Date (optional; month and year only, displayed "Dec 2026")
 **Row 5:** Type (required) / Format (required) / Trim Size (optional)
 **Row 6:** Synopsis (full width, rich text editor — Bold, Italic, Unordered List minimum)
 **Row 7:** Pages / Age Rating / Price USD / UPC-ISBN (all optional)
@@ -296,6 +314,8 @@ at least one issue of that type exists:
 **Trim Size values:** Standard / Digest / Oversized / Digital / Other (triggers freeform text input)
  
 **Issue # field behavior is dependent on Type selection:**
+
+Issue # is used by Regular Issues only and stored without "#". For Annual, One-Shot, Collected Edition and Graphic Novel, the text typed into the shared box is stored in `issue_title`, and `issue_number` is NULL.
  
 Regular Issue: label "Issue #", # prefix added by UI only, 
   user types number only, stored without # in database.
@@ -304,11 +324,12 @@ Regular Issue: label "Issue #", # prefix added by UI only,
 Annual: label "Annual", no # prefix, freetext.
   Display: [Series Title] [Annual value]
  
-One-Shot: label "Title", no # prefix, freetext.
+One-Shot: label "Title", no # prefix, freetext. Title may be blank
+  (displays as the Series Title alone).
   Display: [Series Title] — [Title]
  
 Collected Edition: label "Title", no # prefix, freetext, nullable.
-  Display:
+  Display (TPB, never TP):
     Blank title + Paperback → [Series Title] TPB
     Blank title + Hardcover → [Series Title] HC
     Blank title + Digital → [Series Title] (Digital)
@@ -324,10 +345,12 @@ separator is needed. Never stored — always generated
 from Series Title + Issue Title fields.
  
 **Series Type constrains available Issue Types:**
-  Regular Series → Regular Issue, Annual, One-Shot, Collected Edition
+  Regular Series → Regular Issue, Annual, One-Shot, Collected Edition (NOT Graphic Novel)
   One-Shot → One-Shot only, maximum one issue, block second issue with error message
   Collection → Collected Edition only
   Graphic Novel → Graphic Novel only
+
+Collection and Graphic Novel series cannot use Format = Comic.
  
 Digital — product released digitally only, no print edition exists.
 Does not represent a digital copy of a print product — 
@@ -345,11 +368,13 @@ that is handled by personal tracking (TBD #8).
  
 Two distinct zones:
  
-**Zone 1 — Issue Credits (top)**
-Product Scope credits. Do not travel with imported segments. Visual distinction from Zone 2 required — label "Issue Credits" with explanatory subtext. Exact aesthetic treatment TBD in Claude Design phase.
+**Zone 1 — Product Credits (top)**
+Product Scope credits. Do not travel with imported segments. Visual distinction from Zone 2 required — label "Product Credits" with explanatory subtext. Exact aesthetic treatment TBD in Claude Design phase.
  
 **Zone 2 — Segment Blocks (numbered, below)**
 Story Scope content units.
+
+Collected Editions use the normal Story Breakdown exactly like any other issue — they may contain material found nowhere else.
  
 **Two action buttons at top right of Story Breakdown section:**
 - **[IMPORT]** — opens Import Modal
@@ -364,8 +389,9 @@ Story Scope content units.
   - All other fields empty
 - All credit rows start empty — just the Add button per department
 - Character section starts empty — just the Add button
-- Character Appearance Type has no default — user must explicitly 
-  select Main / Supporting / Cameo / Vision
+- Character Appearance Type defaults to Main (explicit owner change,
+  2026-10-08, reverses an earlier [DECIDED] of "no default — user must
+  explicitly select Main / Supporting / Cameo / Vision")
 **ADD behavior:**
 - Generates new block with defaults: Type = Story / 
   Reproduction = Original / Colors = Color
@@ -424,7 +450,13 @@ No individual segment fields required — all optional.
  
 **Form structure:** Department sections, each with its own ADD button and credit rows.
  
-**Each credit row:** `[Creator Name — autocomplete + fuzzy match + inline create] [Role — type-to-search] [Remove button]`
+**Each credit row:** `[Creator Name — autocomplete + fuzzy match + inline create] [Role — type-to-search] [··· attribute button] [Remove button]`
+
+The "···" attribute button opens a small dialog (currently the Uncredited checkbox lives there).
+
+Every credit row requires a creator and a role; an incomplete row blocks the save with an error.
+
+Planned: optional free-text note per credit (e.g. "pages 1, 5", "framing sequence") [TBD display].
  
 **Role field:** Freetext input with autocomplete against previously used roles within that department. If no match, typed value becomes new role saved to that department's vocabulary. Department-scoped — same word in different departments are independent entries.
  
@@ -439,7 +471,7 @@ No individual segment fields required — all optional.
 | Editors | Story | Segment | Story-level editors: Editor, Assistant Editor, Associate Editor, Senior Editor (story-level) |
 | Cover | Product | Issue | Roles: Cover Artist, Cover Penciler, Cover Inker, Cover Colorist, etc. |
 | Production | Product | Issue | Roles: Editor-in-Chief, Collection Editor, Book Designer, Production Manager, Senior Editor (issue-level) |
-| Lucasfilm | Product | Issue | Roles: Lucasfilm Editor, Lucasfilm Art Director, Licensing Manager, Story Group Consultant, etc. |
+| Lucasfilm | Product | Issue | Roles: Lucasfilm Editor, Lucasfilm Art Director, Creative Director, Art Director, Story Group, Creative Art Manager, Licensing Manager |
  
 **Role vocabulary:** Standardised catch-all terms preferred (Colorist not "Color Artist"). Consistency over literal transcription.
  
@@ -451,6 +483,8 @@ No individual segment fields required — all optional.
 **Each character row:** `[Character Name — autocomplete] [Appearance Type dropdown] [Remove button]`
  
 Autocomplete searches both Baseline names and Persona names simultaneously. Selecting a Persona auto-populates both `character_id` (baseline) and `persona_id`. Displays as "Baseline Name as Persona Name" when persona selected.
+
+Inline-created characters inherit the issue's continuity.
  
 No per-row Universe Filter — site-wide Canon/Legends toggle handles continuity scoping.
  
@@ -460,8 +494,6 @@ No per-row Universe Filter — site-wide Canon/Legends toggle handles continuity
 - **Cameo** — brief appearance, minimal interaction
 - **Vision** — Force ghost, flashback, dream, illusion, clone, or construct
 **Display on entry page:** Grid of headshots with name labels. Auto-sorted: Main → Supporting → Cameo → Vision. No explicit section headers.
- 
-**is_uncredited flag:** Available on character appearances for parity with credit system.
  
 #### 3.2.10 Character Data Model
 **[DECIDED]**
@@ -480,7 +512,7 @@ character_persona
 character_appearance
   id, segment_id, character_id, persona_id (nullable),
   appearance_type (main/supporting/cameo/vision),
-  is_uncredited (boolean), archivist_note, created_at
+  archivist_note, created_at
 ```
  
 **Continuity on character records:**
@@ -516,6 +548,8 @@ Ownership is tracked independently per variant.
  
 Variants are stored in a dedicated `variant_cover` table with a `parent_issue_id` 
 FK — not as additional `comic_issue` rows.
+
+**Status:** `variant_cover` table not yet built (planned Sprint 3).
  
 Access: from the Issue page, an [ADD VARIANT] button opens a blank variant form. 
 Existing variants appear as a thumbnail grid on the Issue page.
@@ -595,8 +629,8 @@ variant_cover
 - Persistent top navigation bar across all pages
 - Minimum nav bar contents (left to right):
   - Holocron logo — clicks to Dashboard
-  - Calendar quick link
-  - Canon/Legends toggle
+  - Calendar quick link [not yet built; no Calendar page is specified]
+  - Canon/Both/Legends toggle (see Section 2.3 for order)
   - Search bar
   - [+] Add New Media button
 #### Add New Media Modal
@@ -613,6 +647,7 @@ Home page. Displays on app load.
 Known requirements: stats summary block (counts for Collected / Read / Wanted).
 Reference: LOCG dashboard layout (provided May 7 2026).
 Everything beyond stats block is TBD.
+Currently shows a Recently Added grid; stats block not built.
  
 #### Search
 **[TBD — full implementation, Sprint 4+]**
@@ -734,7 +769,7 @@ department
   id, name, pillar, scope (story/product), created_at
  
 role
-  id, name, department_id, created_at
+  id, name, department_id, sort_order, created_at
  
 -- role_alias reserved for future use (Film/TV/Games)
 ```
@@ -743,7 +778,7 @@ role
  
 ```sql
 comic_series
-  id, title, series_type, continuity, era_id,
+  id, title, series_type, continuity, canon_era_id, legends_era_id,
   is_timeline_spanning (boolean, default false),
   publisher_id, imprint_id, age_rating,
   start_year, end_year, synopsis,
@@ -752,18 +787,21 @@ comic_series
 comic_issue
   id, series_id, issue_number, issue_title,
   release_date, cover_date,
-  designation, physical_binding, trim_size,
-  pages, price, upc_isbn,
+  designation, physical_binding, trim_size, trim_size_custom,
+  pages, price, upc_isbn, age_rating,
   synopsis, cover_image,
   wookieepedia_url,
   created_at, updated_at
+
+-- issue_title holds the title for non-regular types (Annual, One-Shot,
+-- Collected Edition, Graphic Novel); issue_number is NULL for those types.
  
 external_link
   id, issue_id, url, label, created_at
  
 comic_segment
   id, issue_id, segment_type, sort_order,
-  title, colors, pages,
+  title, colors, pages, reproduction (default 'original'),
   created_at, updated_at
  
 segment_relationship
@@ -781,7 +819,6 @@ credit
 character_appearance
   id, segment_id, character_id, persona_id (nullable),
   appearance_type (main/supporting/cameo/vision),
-  is_uncredited (boolean),
   archivist_note, created_at
  
 -- For Associative Pillars (build now, use later)
@@ -868,23 +905,27 @@ Seed with continuity = 'legends':
 ### Sprint 3 — Comics Pillar: UI
 **Goal:** Full Comics entry workflow functional in browser.
  
-*Before Sprint 3: resolve TBD — Work-Level Credit taxonomy (product owner in progress)*
-*Before Sprint 3: resolve TBD — Navigation structure*
+*Credit taxonomy — resolved for Comics; see Section 3.2.8*
+*Navigation structure — partially resolved; see Section 4.1*
  
 1. ✓ Series Creation Form
 2. ✓ Series Hub Page with issue grid and cover inheritance  
 3. ✓ Issue Form — two-column layout, all fields, rich text synopsis
-4. ✓ Story Breakdown section — Issue Credits zone + Segment blocks (floating labels, sort_order, JS rebuild all completed Session 3, 2026-05-17/18 — see CLAUDE.md session log)
-5. ADD and IMPORT buttons with modal
+4. ✓ Story Breakdown section — Product Credits zone + Segment blocks (floating labels, sort_order, JS rebuild all completed Session 3, 2026-05-17/18 — see CLAUDE.md session log)
+5a. ✓ ADD button
+5b. IMPORT modal (open)
 6. Compilation workflow
-7. Autocomplete + fuzzy match + inline creation for Creator, Publisher, Character
+7. ✓ Autocomplete + fuzzy match + inline creation for Creator, Publisher, Character
 8. Pseudonym display and Pseudonym Page routing
-9. Uncredited flag display
+9. Uncredited flag display — partial: flag can be set; display not built
 10. Contribution Log display on entry pages
-11. Canon/Legends toggle in navigation
+11. ✓ Canon/Legends toggle in navigation
 12. **Issue View page** — not yet built. Currently there is no page to view a saved Issue's metadata, cover, or Story Breakdown after creation; the cover thumbnail on the Series Hub and the "Edit" button are both inert placeholders pending this page. Confirmed by direct inspection of the codebase, October 2026.
 13. Issue Edit / Delete — depends on #12 existing first
 14. Series Edit / Delete
+15. `variant_cover` table (open)
+16. Creator Uncredited feature [TBD — to be designed]
+17. Rename Product Credits label in the form (Phase B)
 ### Sprint 4 — Reference Pages
 **Goal:** Clicking any Creator, Publisher, or Character navigates to their page.
  
@@ -925,31 +966,72 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 - Database backup and restore UI
 - Dark/light theme toggle
 - Related media suggestions
+- One-click desktop launcher / always-on background service
+- Tag for an American edition of an internationally-first release
 ---
  
 ## 8. TBD Registry
  
 | # | Item | Blocking | Notes |
 |---|------|---------|-------|
-| 1 | Work-Level Credit taxonomy — departments and roles per Pillar | Sprint 3 | Product owner in progress |
 | 2 | Variant cover UI | Sprint 4 | Architecture decided — see Section 3.2.14 |
 | 3 | Bulk add / bulk edit UI | Sprint 4+ | Requirements known |
 | 4 | Creator page layout and contents | Sprint 4 | Requirements known |
 | 5 | Publisher/Imprint page layout | Sprint 4 | Requirements known |
 | 6 | Character page layout and contents | Sprint 4 | Requirements known |
 | 7 | Navigation structure | ~~Sprint 3~~ | Partially resolved — see Section 4.1. Full design TBD. |
-| 8 | Personal tracking fields per Pillar | Sprint 3 | Core fields known |
+| 8 | Personal tracking fields per Pillar | — | Core fields known. Blocks Dashboard stats and reading progress. |
 | 9 | Series membership primary vs. companion definition | Sprint 6+ | Field reserved |
 | 10 | Television Pillar full specification | Sprint 5 | Structure decided |
 | 11 | Film, Books, Audio, Games, Manga specs | Sprint 5+ | Structure decided |
 | 12 | Manga tankōbon collection system | Sprint 5+ | Acknowledged complexity |
-| 13 | Placeholder icon style and Pillar accent colors | Sprint 3 | Claude Design phase |
-| 14 | Issue Credits zone visual distinction from Segment credits | Sprint 3 | Claude Design phase |
-| 15 | Continuity badge visual style | Sprint 3 | Claude Design phase |
-| 16 | Legends era list | Sprint 2 | RESOLVED -- see section 5.4 |
+| 13 | Placeholder icon style and Pillar accent colors | Sprint 3 | Claude Design phase not yet done; emoji pillar icons are placeholders |
+| 14 | Product Credits zone visual distinction from Segment credits | Sprint 3 | Claude Design phase not yet done; emoji pillar icons are placeholders |
+| 15 | Continuity badge visual style | Sprint 3 | Claude Design phase not yet done; emoji pillar icons are placeholders |
 | 17 | Newspaper comic strips — format and pillar placement | Sprint 5+ | Too complex for Comics pillar as-is |
 | 18 | Webcomics — format handling | Sprint 5+ | Pending real-world testing |
-| 19 | FCBD issues — confirmed as One-Shot type under per-year series | Resolved | No special handling needed |
-| 20 | Periodicals Pillar inclusion | Resolved | Excluded from current scope (Oct 2026) — logged in §7 as potential future feature |
-| 21 | Holocron Contribution Guidelines ("rulebook" doc, inspired by LOCG's own contributor guidelines) | Unscheduled | Product owner wants a standalone consistency reference, separate from this PRD. Not yet drafted — a prior attempt may have existed in fragments but is not recoverable. Many of its likely contents already live in this PRD (§2.10 Metadata Conventions, §3.2.8 Role vocabulary rules) and could seed a first draft. |
+| 21 | Holocron Contribution Guidelines ("rulebook" doc, inspired by LOCG's own contributor guidelines) | Unscheduled | Product owner wants a standalone consistency reference, separate from this PRD. Many of its likely contents already live in this PRD (§2.10 Metadata Conventions, §3.2.8 Role vocabulary rules) and could seed a first draft. First draft exists: docs/Holocron-Data-Entry-Guide.md. |
 | 22 | Issue View page (read-only display of a saved Issue) | Sprint 3 | Not yet built — see §6 Sprint 3 item 12. Confirmed missing by direct code inspection, October 2026. Issue Edit/Delete and Series Edit/Delete both depend on this existing first. |
+| 23 | Outlier entries (series retitled mid-run with continuing numbering, e.g. Star Wars (1998) → Star Wars: Republic; collected editions with non-standard names) | Unscheduled | See manual title override idea |
+| 24 | Issue sort-position column | Unscheduled | Revisit if release-date + natural-number sort proves insufficient |
+| 25 | Settings and maintenance tools (rename / merge / delete vocabulary and records) | Unscheduled | Role names are stored as text on credits, so renames must update credits |
+| 26 | Credits deep dive (alias entry flow, uncredited display, per-credit notes, credit design for non-Comics pillars) | Unscheduled | Credit table currently tied to comic tables |
+| 27 | American edition of internationally-first release | Unscheduled | Tag/field; interacts with Reprint-segment source rule |
+| 28 | Calendar page and Dashboard design | Unscheduled | — |
+| 29 | Series-level age rating | Unscheduled | — |
+
+### Resolved
+
+| # | Item | Notes |
+|---|------|-------|
+| 1 | Work-Level Credit taxonomy — departments and roles per Pillar | Resolved for Comics — see Section 3.2.8. Other Pillars remain open, see #11. |
+| 16 | Legends era list | RESOLVED -- see section 5.4 |
+| 19 | FCBD issues — confirmed as One-Shot type under per-year series | No special handling needed |
+| 20 | Periodicals Pillar inclusion | Excluded from current scope (Oct 2026) — logged in §7 as potential future feature |
+
+---
+
+## 9. Change Log
+
+| Date | Section | Change | Why |
+|------|---------|--------|-----|
+| 2026-10-08 | Header | Version 0.3 → 0.4; Last Updated → October 8, 2026 | Part 1 reconciliation |
+| 2026-10-08 | How to Use This Document | Added items 5–7 (no [DECIDED] without owner approval; repo copy is source of truth; LOCG/GCD inform, not copy) | Clarify document governance |
+| 2026-10-08 | §1.3 Constraints | "American releases only" → "primary focus; international editions added only occasionally, by exception" | Owner decision — scope softened |
+| 2026-10-08 | §2.3 Canon/Legends Toggle | Toggle order changed to Canon / Both / Legends; added definition of "Both" | Owner clarification of Both semantics and UI order |
+| 2026-10-08 | §2.6 Reference Objects | Added: inline-created records are created on form SAVE, not at pick time, in the same transaction as the log entry | Prevents orphan records |
+| 2026-10-08 | §2.7 Creator Pseudonyms and Uncredited Work | Added [TBD] note scoping Uncredited to creators only (not Characters); added build-status note on Alias table/UI | Clarify current gap |
+| 2026-10-08 | §2.9 Contribution Log | Added Archivist Note text box on Series/Issue forms | New requirement |
+| 2026-10-08 | §2.10 Metadata Conventions | Added date display conventions ("Oct 3, 2026"; cover dates "Dec 2026"; mm/dd/yyyy entry) | Standardize date formatting site-wide |
+| 2026-10-08 | §3.2.2 Series Form Fields | Noted `age_rating` column exists but field not on form (TBD); Graphic Novel series may contain any number of Graphic Novel issues | Clarify current behavior |
+| 2026-10-08 | §3.2.3 Series Hub Page | Sort changed from issue number to release date (issue number natural-sort as tiebreak); added Sort options sidebar [TBD]; date format updated; reading-progress marked not yet built; defined series cover rule | Align spec with intended sort/display behavior |
+| 2026-10-08 | §3.2.4 Issue Form | Clarified issue_number/issue_title storage split; One-Shot title may be blank; Regular Series excludes Graphic Novel; Collection/Graphic Novel cannot use Format = Comic; "TPB, never TP"; Cover Date month/year only; Release Date entry/display format | Close implementation ambiguities |
+| 2026-10-08 | §3.2.5 Story Breakdown Section | Renamed Zone 1 "Issue Credits" → "Product Credits"; added Collected Editions use normal Story Breakdown; **Character Appearance Type now defaults to Main (reverses §3.2.5 "no default — user must explicitly select")** | Terminology consistency; explicit owner reversal, 2026-10-08 |
+| 2026-10-08 | §3.2.8 Credit Mechanic | Added "···" attribute button; creator+role required to save; planned free-text note per credit [TBD display]; updated Lucasfilm role list to match seeds | Match built behavior and seed data |
+| 2026-10-08 | §3.2.9 / §3.2.10 Characters | Removed `is_uncredited` from character_appearance (text and data model); inline-created characters inherit issue's continuity | Simplify — uncredited applies to creators only, not characters |
+| 2026-10-08 | §3.2.14 Variant Cover Form | Added status note: `variant_cover` table not yet built (planned Sprint 3) | Reflect current build state |
+| 2026-10-08 | §4.1 Navigation | Noted toggle order; Calendar link marked not yet built; Dashboard noted as showing Recently Added grid, stats block not built | Reflect current build state |
+| 2026-10-08 | §5 Data Model | `comic_series.era_id` → `canon_era_id` + `legends_era_id`; `comic_issue` gained `age_rating`, `trim_size_custom`; `comic_segment` gained `reproduction` (default 'original'); `role` gained `sort_order`; removed `is_uncredited` from `character_appearance` | Schema catch-up with Sprint 3 build (Phase B implements the migrations) |
+| 2026-10-08 | §6 Build Order, Sprint 3 | Split item 5 into 5a (ADD ✓) / 5b (IMPORT, open); checked off items 7 and 11; item 9 marked partial; resolved the two "Before Sprint 3" TBD lines; added items 15–17 | Reflect current build state |
+| 2026-10-08 | §7 Potential Future Features | Added desktop launcher/background service; American-edition tag | Logged for awareness |
+| 2026-10-08 | §8 TBD Registry | Moved #1, #16, #19, #20 to new Resolved sub-table; reworded #8 (removed "blocking Sprint 3" framing); #13–#15 noted Claude Design phase not yet done; #14 renamed to Product Credits; #21 noted first draft exists; added #23–#29 | Registry cleanup and new open items from Part 1 planning |
