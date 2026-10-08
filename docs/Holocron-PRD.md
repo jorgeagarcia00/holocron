@@ -79,7 +79,6 @@ All media in Holocron is organized around three conceptual tiers:
 **Compositional Hierarchy** — child objects cannot exist independently of parent. Used for serialized media:
 - TV: Series → Season → Episode
 - Comics: Series → Issue
-- Periodicals: Series → Issue
 - Manga: Series → Issue
 **Associative Grouping** — entries exist independently, optionally linked to a named series via `SeriesMembership` join table. Used for standalone media:
 - Film, Books, Audio, Games
@@ -193,7 +192,7 @@ Records created inline (Creator, Publisher, Imprint, Character, Role, link) are 
 ### 2.8 Series Cover Inheritance
 **[DECIDED]**
  
-- **Compositional Pillars** (Comics, TV, Periodicals, Manga): Series thumbnail dynamically generated from first Issue's cover. Placeholder shown until Issue #1 has a cover.
+- **Compositional Pillars** (Comics, TV, Manga): Series thumbnail dynamically generated from first Issue's cover. Placeholder shown until Issue #1 has a cover.
 - **Associative Pillars** (Film, Books, Audio, Games): Cover image uploaded directly on entry form.
 **Placeholder images:** Pillar-specific icons site-wide. Style and accent colors TBD in Claude Design phase. Creator/Character placeholder: neutral person silhouette. Style TBD.
  
@@ -253,7 +252,7 @@ Dates display site-wide as "Oct 3, 2026". Cover dates display as month and year 
 2. System presents **Series Creation Form**
 3. On submit → redirected to **Series Hub Page**
 4. From Hub → **[Add New Issue]** → **Issue Form**
-5. Issue Form is single scrollable page: Issue Metadata → Issue Credits → Story Breakdown
+5. Issue Form is single scrollable page: Issue Metadata → Product Credits → Story Breakdown
 #### 3.2.2 Series Form Fields
  
 | Field | Type | Required | Notes |
@@ -524,7 +523,7 @@ character_appearance
 #### 3.2.11 Cover Handling
 **[DECIDED]**
  
-The cover is NOT a Segment. It is a property of the Issue — handled through the Cover Upload field and the Cover department in Issue Credits (Product Scope). Variant covers, facsimiles, and reprint editions handled at Issue level, not Segment level.
+The cover is NOT a Segment. It is a property of the Issue — handled through the Cover Upload field and the Cover department in Product Credits (Product Scope). Variant covers, facsimiles, and reprint editions handled at Issue level, not Segment level.
  
 #### 3.2.12 Variant Covers
 **[TBD — deferred to Sprint 4+]**
@@ -1035,3 +1034,4 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 | 2026-10-08 | §6 Build Order, Sprint 3 | Split item 5 into 5a (ADD ✓) / 5b (IMPORT, open); checked off items 7 and 11; item 9 marked partial; resolved the two "Before Sprint 3" TBD lines; added items 15–17 | Reflect current build state |
 | 2026-10-08 | §7 Potential Future Features | Added desktop launcher/background service; American-edition tag | Logged for awareness |
 | 2026-10-08 | §8 TBD Registry | Moved #1, #16, #19, #20 to new Resolved sub-table; reworded #8 (removed "blocking Sprint 3" framing); #13–#15 noted Claude Design phase not yet done; #14 renamed to Product Credits; #21 noted first draft exists; added #23–#29 | Registry cleanup and new open items from Part 1 planning |
+| 2026-10-08 | §2.2, §2.8, §3.2.1, §3.2.11 | Removed stray "Periodicals" from compositional-pillar lists (§2.2, §2.8); changed remaining "Issue Credits" references to "Product Credits" (§3.2.1 step 5, §3.2.11) | Follow-up cleanup — missed in the first reconciliation pass |
