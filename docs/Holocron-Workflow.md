@@ -19,7 +19,7 @@ How to run a work session on Holocron, step by step. Rules for Claude Code live 
 | `docs/Holocron-Data-Entry-Guide.md` | How you fill in the forms consistently |
 | `docs/archive/` | Retired documents. History only — never a spec |
 
-**The repo copy is the source of truth.** The claude.ai Project holds a snapshot so the planning chat knows the current state. Whenever a document changes in the repo, re-upload it to the Project at the end of the session (and delete the old version there). Old versions are never kept as extra files — git remembers them.
+**The repo copy is the source of truth.** The claude.ai Project holds a snapshot so the planning chat knows the current state. The Project reads these files from GitHub (branch `main`). Whenever a document changes in the repo, push to GitHub, then press Sync now in the Project. Old versions are never kept as extra files — git remembers them.
 
 ---
 
@@ -53,7 +53,7 @@ One feature at a time. Build it, test it, commit it, then move on.
 
 1. Commit and push: `git add . && git commit -m "wip: ..." && git push`
 2. Ask Claude Code: "Append a short dated entry to docs/history/DEVLOG.md and update Current State in CLAUDE.md."
-3. **Re-upload any changed documents to the claude.ai Project** (PRD, CLAUDE.md, CONTEXT.md, and so on) and delete the old copies there.
+3. **Push to GitHub, then press Sync now in the claude.ai Project** (PRD, CLAUDE.md, CONTEXT.md, and so on).
 
 ---
 

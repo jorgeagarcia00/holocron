@@ -14,7 +14,7 @@ This is the authoritative specification for the Holocron application. Before bui
 3. If something contradicts CLAUDE.md, this PRD takes precedence for feature-level decisions
 4. After completing any feature, note decisions made that aren't covered here so the PRD can be updated
 5. Nothing is marked [DECIDED] without the product owner's explicit approval
-6. The repo copy of this file is the source of truth; the claude.ai Project holds a snapshot, re-uploaded at the end of each session
+6. The repo copy of this file is the source of truth; the claude.ai Project holds a snapshot — push to GitHub, then press Sync now in the Project
 7. LOCG and GCD inform design; they are not copied
 **[DECIDED]** = locked, build exactly as specified
 **[TBD]** = known gap, park and build around it
@@ -1035,3 +1035,4 @@ Begin Television Pillar using Comics patterns. Each subsequent Pillar: resolve T
 | 2026-10-08 | §7 Potential Future Features | Added desktop launcher/background service; American-edition tag | Logged for awareness |
 | 2026-10-08 | §8 TBD Registry | Moved #1, #16, #19, #20 to new Resolved sub-table; reworded #8 (removed "blocking Sprint 3" framing); #13–#15 noted Claude Design phase not yet done; #14 renamed to Product Credits; #21 noted first draft exists; added #23–#29 | Registry cleanup and new open items from Part 1 planning |
 | 2026-10-08 | §2.2, §2.8, §3.2.1, §3.2.11 | Removed stray "Periodicals" from compositional-pillar lists (§2.2, §2.8); changed remaining "Issue Credits" references to "Product Credits" (§3.2.1 step 5, §3.2.11) | Follow-up cleanup — missed in the first reconciliation pass |
+| 2026-10-08 | How to Use This Document (item 6) | "Re-uploaded at the end of each session" → "push to GitHub, then press Sync now in the Project" | Project now syncs from GitHub (branch main) instead of manual file upload |

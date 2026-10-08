@@ -38,7 +38,7 @@ npx tailwindcss -i app/static/css/input.css -o app/static/css/output.css
 - Build Contribution Log logging into every model create/edit/delete
 - Commit after every working feature
 - At the end of every session: append a short dated entry to docs/history/DEVLOG.md and update "Current State" below
-- Remind Jorge at session end to re-upload any changed docs to the claude.ai Project
+- Remind Jorge at session end to push to GitHub, then press Sync now in the Project
 
 ## Never Do
 - Install React, Vue, or any JavaScript framework
