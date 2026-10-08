@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-10-08 — historical record only. Superseded by docs/Holocron-PRD.md §6. Do not use as a spec.**
+
 # Holocron — Sprint 1 Scope
 **Version:** 1.0
 **Status:** Ready to build

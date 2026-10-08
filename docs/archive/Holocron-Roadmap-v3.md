@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-10-08 — historical record only. Superseded by docs/Holocron-Workflow.md. Do not use as a spec.**
+
 # Holocron — Environment Setup & Project Roadmap
 **Version:** 0.3
 **Audience:** You (Jorge)
