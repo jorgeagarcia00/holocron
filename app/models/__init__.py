@@ -16,3 +16,4 @@ from app.models.comics import (
     CharacterAppearance,
     SeriesMembership,
 )
+from app.models.personal import ProductMark, LogEntry
