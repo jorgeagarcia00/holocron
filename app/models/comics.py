@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 from app.extensions import db
 
+# What a credit can point at (credit.target_type). Later pillars add their own values,
+# e.g. 'tv_episode', 'film', 'game'.
+CREDIT_TARGET_SEGMENT = 'comic_segment'
+CREDIT_TARGET_ISSUE = 'comic_issue'
+
 
 def _now():
     return datetime.now(timezone.utc)
@@ -79,6 +84,12 @@ class ComicIssue(db.Model):
     segments = db.relationship('ComicSegment', backref='issue', lazy='dynamic',
                                order_by='ComicSegment.sort_order')
     external_links = db.relationship('ExternalLink', backref='issue', lazy=True)
+    # Product Scope credits (cover artist, editor-in-chief, ...)
+    credits = db.relationship(
+        'Credit',
+        primaryjoin="and_(Credit.target_type == 'comic_issue', "
+                    "foreign(Credit.target_id) == ComicIssue.id)",
+        viewonly=True, lazy='dynamic')
 
 
 class ExternalLink(db.Model):
@@ -110,9 +121,12 @@ class ComicSegment(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
 
-    credits = db.relationship('Credit', backref='segment',
-                              primaryjoin='Credit.segment_id == ComicSegment.id',
-                              lazy='dynamic')
+    # Story Scope credits (writer, penciler, ...)
+    credits = db.relationship(
+        'Credit',
+        primaryjoin="and_(Credit.target_type == 'comic_segment', "
+                    "foreign(Credit.target_id) == ComicSegment.id)",
+        viewonly=True, lazy='dynamic')
     appearances = db.relationship('CharacterAppearance', backref='segment', lazy='dynamic')
     # Relationships for segment provenance chain
     derived_from = db.relationship(
@@ -147,22 +161,24 @@ class Credit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey('creator.id'), nullable=False)
     alias_id = db.Column(db.Integer, db.ForeignKey('creator_alias.id'), nullable=True)
-    # Exactly one of segment_id / issue_id is set; the other is NULL.
-    # segment_id set  → Story Scope (scope = 'story')
-    # issue_id set    → Product Scope (scope = 'product')
-    segment_id = db.Column(db.Integer, db.ForeignKey('comic_segment.id'), nullable=True)
-    issue_id = db.Column(db.Integer, db.ForeignKey('comic_issue.id'), nullable=True)
+    # One flexible credits list: a credit points at "a story, an issue, or later a TV
+    # episode, film, game…" through target_type + target_id. Like SeriesMembership this
+    # is a polymorphic reference with no FK, so the app cleans up credits when a target
+    # is deleted.
+    #   target_type 'comic_segment' → Story Scope   (scope = 'story')
+    #   target_type 'comic_issue'   → Product Scope (scope = 'product')
+    target_type = db.Column(db.String(30), nullable=False)
+    target_id = db.Column(db.Integer, nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
     role_name = db.Column(db.String(100), nullable=False)
     scope = db.Column(db.String(10), nullable=False)  # 'story' or 'product'
     is_uncredited = db.Column(db.Boolean, nullable=False, default=False)
+    note = db.Column(db.Text, nullable=True)  # free text, e.g. "pages 9-10"
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
 
     creator = db.relationship('Creator', backref='credits')
     alias = db.relationship('CreatorAlias', backref='credits')
     department = db.relationship('Department', backref='credits')
-    issue = db.relationship('ComicIssue', backref='credits',
-                            foreign_keys=[issue_id])
 
 
 class CharacterAppearance(db.Model):

@@ -7,7 +7,10 @@ from flask import Blueprint, current_app, render_template, request, redirect
 
 from app.extensions import db
 from app.models.audit import log_contribution
-from app.models.comics import CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink
+from app.models.comics import (
+    CREDIT_TARGET_ISSUE, CREDIT_TARGET_SEGMENT,
+    CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink,
+)
 from app.models.preferences import UserPreferences
 from app.models.reference import Character, CharacterPersona, Creator, Department, Era, Imprint, Publisher, Role
 from app.utils import make_unique_slug, natural_issue_key
@@ -345,6 +348,28 @@ def _resolve_character(character_id, character_q):
     return c
 
 
+def _add_credit(data, creator, dept_id, role_name, target_type, target_id, scope):
+    """Create one credit (and its log entry) from a Story Breakdown credit row."""
+    note = (data.get('note') or '').strip() or None
+    credit = Credit(creator_id=creator.id,
+                    target_type=target_type, target_id=target_id,
+                    department_id=dept_id, role_name=role_name, scope=scope,
+                    is_uncredited=bool(data.get('is_uncredited', False)),
+                    note=note)
+    db.session.add(credit)
+    db.session.flush()
+    log_contribution('create', 'credit', credit.id,
+                     new_value={'creator_id': credit.creator_id,
+                                'target_type': credit.target_type,
+                                'target_id': credit.target_id,
+                                'department_id': credit.department_id,
+                                'role_name': credit.role_name,
+                                'scope': credit.scope,
+                                'is_uncredited': credit.is_uncredited,
+                                'note': credit.note})
+    return credit
+
+
 def _save_story_breakdown(issue, story_data):
     # Issue credits — product scope
     for ic in story_data.get('issue_credits', []):
@@ -354,18 +379,8 @@ def _save_story_breakdown(issue, story_data):
         if not creator or not dept_id:
             continue
         _resolve_role(role_name, dept_id)
-        credit = Credit(creator_id=creator.id, issue_id=issue.id,
-                        department_id=dept_id, role_name=role_name,
-                        scope='product',
-                        is_uncredited=bool(ic.get('is_uncredited', False)))
-        db.session.add(credit)
-        db.session.flush()
-        log_contribution('create', 'credit', credit.id,
-                         new_value={'creator_id': credit.creator_id,
-                                    'issue_id': credit.issue_id,
-                                    'department_id': credit.department_id,
-                                    'role_name': credit.role_name,
-                                    'scope': credit.scope})
+        _add_credit(ic, creator, dept_id, role_name,
+                    CREDIT_TARGET_ISSUE, issue.id, 'product')
 
     # Segments
     for seg_data in story_data.get('segments', []):
@@ -394,18 +409,8 @@ def _save_story_breakdown(issue, story_data):
             if not creator or not dept_id:
                 continue
             _resolve_role(role_name, dept_id)
-            credit = Credit(creator_id=creator.id, segment_id=segment.id,
-                            department_id=dept_id, role_name=role_name,
-                            scope='story',
-                            is_uncredited=bool(sc.get('is_uncredited', False)))
-            db.session.add(credit)
-            db.session.flush()
-            log_contribution('create', 'credit', credit.id,
-                             new_value={'creator_id': credit.creator_id,
-                                        'segment_id': credit.segment_id,
-                                        'department_id': credit.department_id,
-                                        'role_name': credit.role_name,
-                                        'scope': credit.scope})
+            _add_credit(sc, creator, dept_id, role_name,
+                        CREDIT_TARGET_SEGMENT, segment.id, 'story')
 
         # Character appearances
         for cd in seg_data.get('characters', []):
