@@ -38,3 +38,17 @@ def natural_issue_key(issue_number):
     if fraction is not None:
         value += _FRACTIONS[fraction]
     return (0, value, suffix.lower())
+
+
+def format_date(value):
+    """Display a date as "Oct 3, 2026" (PRD §2.10)."""
+    if not value:
+        return ''
+    return f'{value.strftime("%b")} {value.day}, {value.year}'
+
+
+def format_cover_date(value):
+    """Display a cover date as month and year only: "Dec 2026" (PRD §2.10)."""
+    if not value:
+        return ''
+    return f'{value.strftime("%b")} {value.year}'

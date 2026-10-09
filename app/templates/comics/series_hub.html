@@ -105,8 +105,8 @@
     </div>
     <p class="text-xs text-gray-400 font-medium truncate" title="{{ label }}">{{ label }}</p>
     {% if issue.release_date %}
-    <p class="text-xs text-gray-600 uppercase tracking-wide">
-      {{ issue.release_date.strftime('%b') }} {{ issue.release_date.day }}, {{ issue.release_date.year }}
+    <p class="text-xs text-gray-600">
+      {{ issue.release_date | fmt_date }}
     </p>
     {% endif %}
   </div>

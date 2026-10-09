@@ -21,6 +21,10 @@ def create_app():
     flask_app.register_blueprint(api_bp)
     flask_app.register_blueprint(comics_bp)
 
+    from app.utils import format_cover_date, format_date
+    flask_app.add_template_filter(format_date, 'fmt_date')
+    flask_app.add_template_filter(format_cover_date, 'fmt_cover_date')
+
     from app.seeds import seed_all
     seed_all(flask_app)
 
