@@ -25,6 +25,9 @@ def create_app():
     flask_app.add_template_filter(format_date, 'fmt_date')
     flask_app.add_template_filter(format_cover_date, 'fmt_cover_date')
 
+    from app.backup import register_backup_command
+    register_backup_command(flask_app)
+
     from app.seeds import seed_all
     seed_all(flask_app)
 
