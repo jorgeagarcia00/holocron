@@ -20,6 +20,7 @@ class ComicSeries(db.Model):
     publisher_id = db.Column(db.Integer, db.ForeignKey('publisher.id'), nullable=False)
     imprint_id = db.Column(db.Integer, db.ForeignKey('imprint.id'), nullable=True)
     age_rating = db.Column(db.String(10), nullable=True)  # all_ages/t/t_plus/m
+    volume = db.Column(db.Integer, nullable=True)  # blank = no "Vol. N" tag
     start_year = db.Column(db.Integer, nullable=True)
     end_year = db.Column(db.Integer, nullable=True)
     synopsis = db.Column(db.Text, nullable=True)
