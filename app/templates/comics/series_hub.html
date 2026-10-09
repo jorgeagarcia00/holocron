@@ -89,7 +89,7 @@
 
   {#-- Reusable issue card macro --#}
   {% macro issue_card(issue, label) %}
-  <div class="group block min-w-0">
+  <div id="issue-{{ issue.id }}" class="group block min-w-0">
     <div class="relative w-full aspect-[2/3] bg-gray-800 rounded overflow-hidden
                 ring-1 ring-gray-700 group-hover:ring-yellow-400 transition-all mb-1">
       {% if issue.cover_image %}

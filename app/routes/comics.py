@@ -489,6 +489,25 @@ def _save_cover(file):
     return f'uploads/covers/{filename}'
 
 
+def _find_duplicate_issue(series, designation, issue_number, issue_title, physical_binding):
+    """Return the existing issue this one would duplicate, or None (PRD §3.2.4).
+
+    Regular Issues: same series, issue # and type. Other types have no number, so their
+    title (and format, since a TPB and an HC with one title are different products) is
+    compared instead. Done in code only: a database constraint could wrongly block a
+    legitimate case.
+    """
+    q = ComicIssue.query.filter_by(series_id=series.id, designation=designation)
+    if designation == 'regular_issue':
+        if not issue_number:
+            return None
+        return q.filter(db.func.lower(ComicIssue.issue_number) == issue_number.lower()).first()
+    q = q.filter_by(physical_binding=physical_binding)
+    if issue_title:
+        return q.filter(db.func.lower(ComicIssue.issue_title) == issue_title.lower()).first()
+    return q.filter(db.or_(ComicIssue.issue_title.is_(None), ComicIssue.issue_title == '')).first()
+
+
 def _handle_issue_create(series):
     f = request.form
     errors = []
@@ -593,9 +612,16 @@ def _handle_issue_create(series):
         except (ValueError, TypeError):
             pass  # silently ignore bad cover date
 
+    duplicate_of = None
+    if not errors:
+        duplicate_of = _find_duplicate_issue(series, designation, issue_number,
+                                             issue_title, physical_binding)
+        if duplicate_of:
+            errors.append('This issue already exists in this series.')
+
     if errors:
         return render_template('comics/issue_new.html',
-                               form=f, errors=errors,
+                               form=f, errors=errors, duplicate_of=duplicate_of,
                                **_issue_form_context(series)), 422
 
     # Cover image
