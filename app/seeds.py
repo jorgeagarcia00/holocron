@@ -13,7 +13,7 @@ ERA_DATA = [
     ('The New Republic',            'canon',   70),
     ('Rise of the First Order',     'canon',   80),
     ('New Jedi Order',              'canon',   90),
-    ('Visions (Non-Continuity)',    'canon',  999),
+    ('Visions',                     'canon',  999),
     ('Before the Republic',         'legends', 10),
     ('The Old Republic',            'legends', 20),
     ('Rise of the Empire',          'legends', 30),
@@ -21,7 +21,7 @@ ERA_DATA = [
     ('The New Republic',            'legends', 50),
     ('The New Jedi Order',          'legends', 60),
     ('Legacy Era',                  'legends', 70),
-    ('Infinities (Non-Continuity)', 'legends', 999),
+    ('Infinities',                  'legends', 999),
 ]
 
 COMICS_DEPARTMENTS = [
