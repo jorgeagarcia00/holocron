@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, render_template
 from rapidfuzz import fuzz, process
 
 from app.extensions import db
-from app.models.audit import log_contribution
+from app.models.audit import log_contribution, to_json_safe
 from app.models.reference import (
     Creator, Publisher, Imprint,
     Character, CharacterPersona, Era, Role,
@@ -183,16 +183,11 @@ def _require(body, *fields):
     return missing
 
 
-def _to_json_safe(val):
-    from datetime import datetime
-    return val.isoformat() if isinstance(val, datetime) else val
-
-
 def _commit_new(record, record_type):
     db.session.add(record)
     db.session.flush()
     log_contribution('create', record_type, record.id,
-                     new_value={c.name: _to_json_safe(getattr(record, c.name))
+                     new_value={c.name: to_json_safe(getattr(record, c.name))
                                 for c in record.__table__.columns})
     db.session.commit()
 

@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from app.extensions import db
 
 
@@ -26,3 +27,33 @@ def log_contribution(action_type, record_type, record_id,
         archivist_note=archivist_note,
     )
     db.session.add(entry)
+
+
+def log_edit(record_type, record_id, before, after, archivist_note=None):
+    """Log an edit as the changed fields only: old_value holds each changed field's value
+    before, new_value its value after (PRD §2.9). Returns the entry, or None when nothing
+    changed and no note was given. Like log_contribution, the caller commits.
+
+    `before` and `after` are dicts of field name -> value for the same record.
+    """
+    changed = [k for k in after if before.get(k) != after[k]]
+    if not changed and not archivist_note:
+        return None
+    entry = ContributionLog(
+        action_type='edit',
+        record_type=record_type,
+        record_id=record_id,
+        old_value={k: to_json_safe(before.get(k)) for k in changed},
+        new_value={k: to_json_safe(after[k]) for k in changed},
+        archivist_note=archivist_note or None,
+    )
+    db.session.add(entry)
+    return entry
+
+
+def to_json_safe(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
