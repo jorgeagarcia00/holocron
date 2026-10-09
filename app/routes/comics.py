@@ -10,7 +10,7 @@ from app.models.audit import log_contribution
 from app.models.comics import CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink
 from app.models.preferences import UserPreferences
 from app.models.reference import Character, CharacterPersona, Creator, Department, Era, Imprint, Publisher, Role
-from app.utils import make_unique_slug
+from app.utils import make_unique_slug, natural_issue_key
 
 comics_bp = Blueprint('comics', __name__)
 
@@ -211,14 +211,12 @@ def _handle_series_create(initial_continuity):
 
 @comics_bp.route('/comics/series/<int:series_id>')
 def series_hub(series_id):
-    from sqlalchemy import cast, Integer as SAInt
     series = ComicSeries.query.get_or_404(series_id)
 
-    regular_issues = (series.issues
-                      .filter_by(designation='regular_issue')
-                      .order_by(cast(ComicIssue.issue_number, SAInt),
-                                ComicIssue.release_date)
-                      .all())
+    # Release date first; natural issue-number order breaks ties (½, 1, 1.AU, 2)
+    regular_issues = sorted(
+        series.issues.filter_by(designation='regular_issue').all(),
+        key=lambda i: (i.release_date, natural_issue_key(i.issue_number)))
     annuals = (series.issues
                .filter_by(designation='annual')
                .order_by(ComicIssue.release_date)

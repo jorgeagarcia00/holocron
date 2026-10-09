@@ -16,8 +16,9 @@
         <!-- Poster -->
         <div class="relative w-full aspect-[2/3] bg-gray-800 rounded overflow-hidden mb-2 ring-1 ring-gray-700 group-hover:ring-yellow-400 transition-all">
 
-          {% if series.issues.first() and series.issues.first().cover_image %}
-            <img src="{{ url_for('static', filename=series.issues.first().cover_image) }}"
+          {% set cover_issue = series.cover_issue %}
+          {% if cover_issue %}
+            <img src="{{ url_for('static', filename=cover_issue.cover_image) }}"
                  alt="{{ series.title }}"
                  class="w-full h-full object-cover">
           {% else %}

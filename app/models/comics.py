@@ -33,6 +33,18 @@ class ComicSeries(db.Model):
     issues = db.relationship('ComicIssue', backref='series', lazy='dynamic',
                              order_by='ComicIssue.issue_number')
 
+    @property
+    def cover_issue(self):
+        """Earliest-release Regular Issue that has a cover (PRD §3.2.3); None if there is none."""
+        from app.utils import natural_issue_key
+        candidates = self.issues.filter(ComicIssue.designation == 'regular_issue',
+                                        ComicIssue.cover_image.isnot(None),
+                                        ComicIssue.cover_image != '').all()
+        if not candidates:
+            return None
+        return min(candidates,
+                   key=lambda i: (i.release_date, natural_issue_key(i.issue_number)))
+
 
 class ComicIssue(db.Model):
     __tablename__ = 'comic_issue'
