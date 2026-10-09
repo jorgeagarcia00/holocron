@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% set editing = series is not none %}
+{% block title %}{% if editing %}Edit {{ series.title }}{% else %}New Comic Series{% endif %} — Holocron{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- Page header -->
+  <div class="mb-8">
+    <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Comics</p>
+    <h1 class="text-xl font-semibold text-gray-100">{% if editing %}Edit Series{% else %}New Series{% endif %}</h1>
+  </div>
+
+  <!-- Validation errors -->
+  {% if errors %}
+  <div class="mb-6 p-4 bg-red-900/30 border border-red-800 rounded-lg text-sm text-red-300">
+    <ul class="list-disc list-inside space-y-1">
+      {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% set cancel_url = '/comics/series/' ~ series.id if editing else '/' %}
+  <form method="POST"
+    action="{% if editing %}/comics/series/{{ series.id }}/edit{% else %}/comics/series/new{% endif %}"
+    class="space-y-6">
+
+    <!-- 1. Publisher + Imprint -->
+    <div class="grid grid-cols-2 gap-4 items-start">
+      <div class="space-y-5">
+        <div class="fl-group">
+          <label class="fl-label">Publisher <span class="fl-req">*</span></label>
+          <select name="publisher_id" id="publisher-select" class="fl-select">
+            <option value="">Select publisher…</option>
+            {% for p in publishers %}
+            <option value="{{ p.id }}" {% if (form.publisher_id or '') | string == p.id | string %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+            <option value="__new__" {% if form.publisher_id == '__new__' %}selected{% endif %}>+ Add new…</option>
+          </select>
+        </div>
+        <div id="publisher-new-group" class="fl-group hidden">
+          <label class="fl-label">New Publisher <span class="fl-req">*</span></label>
+          <input type="text" name="publisher_new" id="publisher-new" maxlength="100"
+            value="{{ form.publisher_new or '' }}" class="fl-input">
+        </div>
+      </div>
+      <div class="space-y-5">
+        <div class="fl-group">
+          <label class="fl-label">Imprint</label>
+          <select name="imprint_id" id="imprint-select" class="fl-select"
+            data-selected="{{ form.imprint_id or '' }}"></select>
+        </div>
+        <div id="imprint-new-group" class="fl-group hidden">
+          <label class="fl-label">New Imprint <span class="fl-req">*</span></label>
+          <input type="text" name="imprint_new" id="imprint-new" maxlength="100"
+            value="{{ form.imprint_new or '' }}" class="fl-input">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Title -->
+    <div class="fl-group">
+      <label class="fl-label">Title <span class="fl-req">*</span></label>
+      <input type="text" name="title" value="{{ form.title or '' }}"
+        class="fl-input" maxlength="255" required {% if not editing %}autofocus{% endif %}>
+    </div>
+
+    <!-- 3. Series Type + Vol. # -->
+    <div class="grid grid-cols-[1fr_7rem] gap-4">
+      <div class="fl-group">
+        <label class="fl-label">Series Type <span class="fl-req">*</span></label>
+        <select name="series_type" class="fl-select">
+          {% for val, label in series_types %}
+          <option value="{{ val }}" {% if (form.series_type or 'regular_series') == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fl-group">
+        <label class="fl-label">Vol. #</label>
+        <input type="number" name="volume" value="{{ form.volume or '' }}" min="1" step="1"
+          class="fl-input">
+      </div>
+    </div>
+
+    <!-- 4. Continuity + Era (second Era appears for Both) -->
+    {% set sel_continuity = form.continuity or 'both' %}
+    <div class="grid grid-cols-2 gap-4 items-start">
+      <div class="fl-group">
+        <label class="fl-label">Continuity <span class="fl-req">*</span></label>
+        <select name="continuity" id="continuity-select" class="fl-select"
+          onchange="updateEraFields(this.value)">
+          <option value="canon"   {% if sel_continuity == 'canon'   %}selected{% endif %}>Canon</option>
+          <option value="legends" {% if sel_continuity == 'legends' %}selected{% endif %}>Legends</option>
+          <option value="both"    {% if sel_continuity == 'both'    %}selected{% endif %}>Both</option>
+        </select>
+      </div>
+      <div class="space-y-5">
+        <div id="canon-era-group" class="fl-group">
+          <label class="fl-label"><span id="canon-era-label-text">Era</span> <span class="fl-req">*</span></label>
+          <select name="canon_era_id" id="canon-era-select" class="fl-select">
+            <option value="">Select era…</option>
+            {% for era in canon_eras %}
+            <option value="{{ era.id }}" {% if (form.canon_era_id or '') | string == era.id | string %}selected{% endif %}>{{ era.name }}</option>
+            {% endfor %}
+            <option value="multiple" {% if form.canon_era_id == 'multiple' %}selected{% endif %}>Multiple Eras</option>
+          </select>
+        </div>
+        <div id="legends-era-group" class="fl-group">
+          <label class="fl-label"><span id="legends-era-label-text">Era</span> <span class="fl-req">*</span></label>
+          <select name="legends_era_id" id="legends-era-select" class="fl-select">
+            <option value="">Select era…</option>
+            {% for era in legends_eras %}
+            <option value="{{ era.id }}" {% if (form.legends_era_id or '') | string == era.id | string %}selected{% endif %}>{{ era.name }}</option>
+            {% endfor %}
+            <option value="multiple" {% if form.legends_era_id == 'multiple' %}selected{% endif %}>Multiple Eras</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Start Year / End Year / Age Rating -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="fl-group">
+        <label class="fl-label">Start Year</label>
+        <input type="number" name="start_year" value="{{ form.start_year or '' }}"
+          min="1961" max="2099" placeholder="e.g. 2015" class="fl-input">
+      </div>
+      <div class="fl-group">
+        <label class="fl-label">End Year</label>
+        <input type="number" name="end_year" value="{{ form.end_year or '' }}"
+          min="1961" max="2099" placeholder="e.g. 2017" class="fl-input">
+      </div>
+      <div class="fl-group">
+        <label class="fl-label">Age Rating</label>
+        <select name="age_rating" class="fl-select">
+          {% for val, label in age_ratings %}
+          <option value="{{ val }}" {% if (form.age_rating or '') == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- 6. Synopsis -->
+    <div class="fl-group">
+      <label class="fl-label">Synopsis</label>
+      <textarea name="synopsis" rows="6" class="fl-textarea">{{ form.synopsis or '' }}</textarea>
+    </div>
+
+    <!-- 7. Notes (Archivist Note — saved with this edit only) -->
+    <div>
+      <div class="fl-group">
+        <label class="fl-label">Notes</label>
+        <textarea name="archivist_note" rows="2" class="fl-textarea">{{ form.archivist_note or '' }}</textarea>
+      </div>
+      <p class="mt-1 text-xs text-gray-600">Why you {% if editing %}changed{% else %}added{% endif %} this. Saved with this entry only and shown in Edit history.</p>
+    </div>
+
+    <!-- 8. Actions -->
+    <div class="flex items-center gap-4 pt-2 border-t border-gray-800">
+      <button type="submit"
+        class="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-semibold text-sm px-6 py-2 rounded transition-colors">
+        {% if editing %}Save Changes{% else %}Create Series{% endif %}
+      </button>
+      <a href="{{ cancel_url }}" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">Cancel</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const IMPRINTS = {{ imprints_by_publisher | tojson }};
+  const NEW = '__new__';
+
+  // Publisher / Imprint: nothing is saved here; "+ Add new…" just reveals a text box.
+  const pubSelect = document.getElementById('publisher-select');
+  const impSelect = document.getElementById('imprint-select');
+  const pubNewGroup = document.getElementById('publisher-new-group');
+  const impNewGroup = document.getElementById('imprint-new-group');
+  const pubNew = document.getElementById('publisher-new');
+  const impNew = document.getElementById('imprint-new');
+
+  function fillImprints(selected) {
+    const pub = pubSelect.value;
+    const options = [['', pub ? '— none —' : 'Choose a publisher first']];
+    if (pub && pub !== NEW) {
+      (IMPRINTS[pub] || []).forEach(i => options.push([String(i.id), i.name]));
+    }
+    if (pub) options.push([NEW, '+ Add new…']);
+    impSelect.innerHTML = '';
+    options.forEach(([value, label]) => {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      if (value === selected) o.selected = true;
+      impSelect.appendChild(o);
+    });
+    impSelect.disabled = !pub;
+    syncNewBoxes();
+  }
+
+  function syncNewBoxes() {
+    const pubIsNew = pubSelect.value === NEW;
+    const impIsNew = impSelect.value === NEW;
+    pubNewGroup.classList.toggle('hidden', !pubIsNew);
+    impNewGroup.classList.toggle('hidden', !impIsNew);
+    pubNew.required = pubIsNew;
+    impNew.required = impIsNew;
+    if (!pubIsNew) pubNew.value = '';
+    if (!impIsNew) impNew.value = '';
+  }
+
+  pubSelect.addEventListener('change', () => { fillImprints(''); if (pubSelect.value === NEW) pubNew.focus(); });
+  impSelect.addEventListener('change', () => { syncNewBoxes(); if (impSelect.value === NEW) impNew.focus(); });
+  fillImprints(impSelect.dataset.selected);
+
+  // Continuity: one Era dropdown, or two when Continuity is Both
+  function updateEraFields(continuity) {
+    const canonGroup = document.getElementById('canon-era-group');
+    const legendsGroup = document.getElementById('legends-era-group');
+    const canonSelect = document.getElementById('canon-era-select');
+    const legendsSelect = document.getElementById('legends-era-select');
+    const both = continuity === 'both';
+    const showCanon = continuity === 'canon' || both;
+    const showLegends = continuity === 'legends' || both;
+
+    canonGroup.classList.toggle('hidden', !showCanon);
+    legendsGroup.classList.toggle('hidden', !showLegends);
+    canonSelect.required = showCanon;
+    legendsSelect.required = showLegends;
+    if (!showCanon) canonSelect.value = '';
+    if (!showLegends) legendsSelect.value = '';
+    document.getElementById('canon-era-label-text').textContent = both ? 'Canon Era' : 'Era';
+    document.getElementById('legends-era-label-text').textContent = both ? 'Legends Era' : 'Era';
+  }
+
+  updateEraFields(document.getElementById('continuity-select').value);
+</script>
+{% endblock %}

@@ -6,7 +6,7 @@ from datetime import date
 from flask import Blueprint, current_app, render_template, request, redirect
 
 from app.extensions import db
-from app.models.audit import log_contribution
+from app.models.audit import ContributionLog, log_contribution, log_edit, to_json_safe
 from app.models.comics import (
     CREDIT_TARGET_ISSUE, CREDIT_TARGET_SEGMENT,
     CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink,
@@ -82,26 +82,144 @@ def _get_legends_eras():
     return Era.query.filter_by(continuity='legends').order_by(Era.sort_order).all()
 
 
+SERIES_AGE_RATINGS = [
+    ('',         '—'),
+    ('all_ages', 'All Ages'),
+    ('t',        'T'),
+    ('t_plus',   'T+'),
+    ('m',        'M'),
+]
+
+# Series fields written to the Contribution Log (create and edit)
+_SERIES_LOG_FIELDS = (
+    'title', 'series_type', 'volume', 'continuity', 'canon_era_id', 'legends_era_id',
+    'is_timeline_spanning', 'publisher_id', 'imprint_id', 'start_year', 'end_year',
+    'age_rating', 'synopsis',
+)
+
+_NEW = '__new__'   # dropdown value for "+ Add new…"
+
+
+def _series_snapshot(series):
+    return {k: getattr(series, k) for k in _SERIES_LOG_FIELDS}
+
+
+def _series_form_values(series):
+    """Pre-fill values for the form when editing. The Note is never pre-filled."""
+    def era(era_id):
+        return str(era_id) if era_id else ('multiple' if series.is_timeline_spanning else '')
+    return {
+        'title': series.title,
+        'series_type': series.series_type,
+        'volume': series.volume or '',
+        'continuity': series.continuity,
+        'canon_era_id': era(series.canon_era_id) if series.continuity in ('canon', 'both') else '',
+        'legends_era_id': era(series.legends_era_id) if series.continuity in ('legends', 'both') else '',
+        'publisher_id': str(series.publisher_id),
+        'imprint_id': str(series.imprint_id) if series.imprint_id else '',
+        'start_year': series.start_year or '',
+        'end_year': series.end_year or '',
+        'age_rating': series.age_rating or '',
+        'synopsis': series.synopsis or '',
+    }
+
+
+def _series_form_context(form, errors, series=None):
+    prefs = UserPreferences.query.first()
+    publishers = Publisher.query.order_by(db.func.lower(Publisher.name)).all()
+    imprints_by_publisher = {
+        p.id: [{'id': i.id, 'name': i.name}
+               for i in sorted(p.imprints, key=lambda i: i.name.lower())]
+        for p in publishers
+    }
+    if not form:
+        form = {'continuity': prefs.continuity_filter if prefs else 'both'}
+    return dict(
+        series=series,
+        form=form, errors=errors,
+        canon_eras=_get_canon_eras(),
+        legends_eras=_get_legends_eras(),
+        series_types=SERIES_TYPES,
+        age_ratings=SERIES_AGE_RATINGS,
+        publishers=publishers,
+        imprints_by_publisher=imprints_by_publisher,
+    )
+
+
+def _render_series_form(form, errors, series=None, status=200):
+    return render_template('comics/series_form.html',
+                           **_series_form_context(form, errors, series)), status
+
+
 @comics_bp.route('/comics/series/new', methods=['GET', 'POST'])
 def series_new():
-    prefs = UserPreferences.query.first()
-    initial_continuity = prefs.continuity_filter if prefs else 'both'
-
     if request.method == 'POST':
-        return _handle_series_create(initial_continuity)
-
-    return render_template('comics/series_new.html',
-                           initial_continuity=initial_continuity,
-                           canon_eras=_get_canon_eras(),
-                           legends_eras=_get_legends_eras(),
-                           series_types=SERIES_TYPES,
-                           form={},
-                           errors=[])
+        return _save_series(None)
+    return _render_series_form({}, [])
 
 
-def _handle_series_create(initial_continuity):
+@comics_bp.route('/comics/series/<int:series_id>/edit', methods=['GET', 'POST'])
+def series_edit(series_id):
+    series = ComicSeries.query.get_or_404(series_id)
+    if request.method == 'POST':
+        return _save_series(series)
+    return _render_series_form(_series_form_values(series), [], series)
+
+
+def _parse_int(raw, label, errors, minimum=None, maximum=None):
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        errors.append(f'{label} must be a whole number.')
+        return None
+    if (minimum is not None and value < minimum) or (maximum is not None and value > maximum):
+        errors.append(f'{label} must be between {minimum} and {maximum}.' if maximum is not None
+                      else f'{label} must be {minimum} or more.')
+        return None
+    return value
+
+
+def _check_era(raw):
+    """Return (era_id, is_multiple) for one Era dropdown value."""
+    if raw == 'multiple':
+        return None, True
+    era_id = _as_int(raw)
+    if era_id is None or db.session.get(Era, era_id) is None:
+        return None, False
+    return era_id, False
+
+
+def _series_type_conflicts(series, series_type):
+    """Why an existing series cannot change to `series_type` (same rules the issue form uses)."""
+    problems = []
+    allowed = _TYPE_ALLOWED_DESIGNATIONS.get(series_type)
+    blocked = _BINDING_BLOCKED.get(series_type, set())
+    issues = series.issues.all()
+    label = series_type.replace('_', ' ').title()
+    if series_type == 'one_shot' and len(issues) > 1:
+        problems.append(f'This series has {len(issues)} issues; a One-Shot series can hold only one.')
+    for issue in issues:
+        if allowed is not None and issue.designation not in allowed:
+            problems.append(
+                f'Cannot change to {label}: it holds a '
+                f'{issue.designation.replace("_", " ").title()}, which a {label} series may not contain.')
+            break
+    for issue in issues:
+        if issue.physical_binding in blocked:
+            problems.append(
+                f'Cannot change to {label}: it holds an issue in Comic format, '
+                f'which a {label} series may not contain.')
+            break
+    return problems
+
+
+def _save_series(series):
     f = request.form
     errors = []
+    editing = series is not None
 
     title            = f.get('title', '').strip()
     series_type      = f.get('series_type', '').strip()
@@ -109,109 +227,187 @@ def _handle_series_create(initial_continuity):
     canon_era_raw    = f.get('canon_era_id', '').strip()
     legends_era_raw  = f.get('legends_era_id', '').strip()
     pub_id_raw       = f.get('publisher_id', '').strip()
-    pub_q            = f.get('publisher_q', '').strip()
+    pub_new          = f.get('publisher_new', '').strip()
     imp_id_raw       = f.get('imprint_id', '').strip()
-    imp_q            = f.get('imprint_q', '').strip()
-    start_year       = f.get('start_year', '').strip() or None
-    end_year         = f.get('end_year', '').strip() or None
+    imp_new          = f.get('imprint_new', '').strip()
+    age_rating       = f.get('age_rating', '').strip() or None
     synopsis         = f.get('synopsis', '').strip() or None
+    note             = f.get('archivist_note', '').strip() or None
 
-    valid_types = {v for v, _ in SERIES_TYPES}
+    volume     = _parse_int(f.get('volume'), 'Vol. #', errors, minimum=1)
+    start_year = _parse_int(f.get('start_year'), 'Start Year', errors, minimum=1961, maximum=2099)
+    end_year   = _parse_int(f.get('end_year'), 'End Year', errors, minimum=1961, maximum=2099)
 
     if not title:
         errors.append('Title is required.')
-    if series_type not in valid_types:
+    elif len(title) > 255:
+        errors.append('Title is too long (255 characters at most).')
+    if series_type not in {v for v, _ in SERIES_TYPES}:
         errors.append('Series Type is required.')
+    if age_rating not in {v for v, _ in SERIES_AGE_RATINGS if v} | {None}:
+        errors.append('Age Rating is not a valid choice.')
+    if start_year and end_year and end_year < start_year:
+        errors.append(f'End Year ({end_year}) cannot be earlier than Start Year ({start_year}).')
+
+    # Continuity and Era. Only the Era dropdowns that match the Continuity count.
+    canon_era_id = legends_era_id = None
+    canon_multiple = legends_multiple = False
     if continuity not in ('canon', 'legends', 'both'):
         errors.append('Continuity is required.')
-    if continuity in ('canon', 'both') and not canon_era_raw:
-        errors.append('Canon Era is required.' if continuity == 'both' else 'Era is required.')
-    if continuity in ('legends', 'both') and not legends_era_raw:
-        errors.append('Legends Era is required.' if continuity == 'both' else 'Era is required.')
-    if not pub_id_raw and not pub_q:
-        errors.append('Publisher is required.')
+    else:
+        both = continuity == 'both'
+        if continuity in ('canon', 'both'):
+            canon_era_id, canon_multiple = _check_era(canon_era_raw)
+            if not canon_era_id and not canon_multiple:
+                errors.append('Choose a Canon Era (or "Multiple Eras").' if both
+                              else 'Choose an Era (or "Multiple Eras").')
+        if continuity in ('legends', 'both'):
+            legends_era_id, legends_multiple = _check_era(legends_era_raw)
+            if not legends_era_id and not legends_multiple:
+                errors.append('Choose a Legends Era (or "Multiple Eras").' if both
+                              else 'Choose an Era (or "Multiple Eras").')
+    is_timeline_spanning = canon_multiple or legends_multiple
+
+    # Publisher and Imprint: an id, or "+ Add new…" with a typed name (created on save)
+    publisher = None
+    new_publisher_name = None
+    if pub_id_raw == _NEW:
+        if not pub_new:
+            errors.append('Type the name of the new Publisher.')
+        elif len(pub_new) > 100:
+            errors.append('Publisher name is too long (100 characters at most).')
+        else:
+            new_publisher_name = pub_new
+            publisher = Publisher.query.filter(
+                db.func.lower(Publisher.name) == pub_new.lower()).first()
+            if publisher:
+                new_publisher_name = None
+    else:
+        publisher = db.session.get(Publisher, _as_int(pub_id_raw)) if _as_int(pub_id_raw) else None
+        if publisher is None:
+            errors.append('Publisher is required.')
+
+    imprint = None
+    new_imprint_name = None
+    if imp_id_raw == _NEW:
+        if not imp_new:
+            errors.append('Type the name of the new Imprint.')
+        elif len(imp_new) > 100:
+            errors.append('Imprint name is too long (100 characters at most).')
+        else:
+            new_imprint_name = imp_new
+            if publisher is not None:
+                imprint = Imprint.query.filter(
+                    Imprint.publisher_id == publisher.id,
+                    db.func.lower(Imprint.name) == imp_new.lower()).first()
+                if imprint:
+                    new_imprint_name = None
+    elif imp_id_raw:
+        imprint = db.session.get(Imprint, _as_int(imp_id_raw)) if _as_int(imp_id_raw) else None
+        if imprint is None or publisher is None or imprint.publisher_id != publisher.id:
+            errors.append('That Imprint does not belong to the chosen Publisher.')
+
+    if editing and series_type in {v for v, _ in SERIES_TYPES} and series_type != series.series_type:
+        errors.extend(_series_type_conflicts(series, series_type))
 
     if errors:
-        return render_template('comics/series_new.html',
-                               initial_continuity=initial_continuity,
-                               canon_eras=_get_canon_eras(),
-                               legends_eras=_get_legends_eras(),
-                               series_types=SERIES_TYPES,
-                               form=f,
-                               errors=errors), 422
+        return _render_series_form(f, errors, series, status=422)
 
-    # Resolve eras — 'multiple' value sets is_timeline_spanning
-    is_timeline_spanning = (canon_era_raw == 'multiple' or legends_era_raw == 'multiple')
-    canon_era_id   = None if (not canon_era_raw or canon_era_raw == 'multiple') else int(canon_era_raw)
-    legends_era_id = None if (not legends_era_raw or legends_era_raw == 'multiple') else int(legends_era_raw)
+    # Everything is valid: now (and only now) create any new publisher / imprint
+    if new_publisher_name:
+        publisher = Publisher(name=new_publisher_name,
+                              slug=make_unique_slug(new_publisher_name, Publisher))
+        db.session.add(publisher)
+        db.session.flush()
+        log_contribution('create', 'publisher', publisher.id,
+                         new_value={'name': publisher.name, 'slug': publisher.slug})
+    if new_imprint_name:
+        imprint = Imprint(name=new_imprint_name,
+                          slug=make_unique_slug(new_imprint_name, Imprint),
+                          publisher_id=publisher.id)
+        db.session.add(imprint)
+        db.session.flush()
+        log_contribution('create', 'imprint', imprint.id,
+                         new_value={'name': imprint.name, 'slug': imprint.slug,
+                                    'publisher_id': imprint.publisher_id})
 
-    # Resolve publisher — use existing if found, else create
-    if pub_id_raw:
-        publisher_id = int(pub_id_raw)
-    else:
-        existing_pub = Publisher.query.filter(
-            db.func.lower(Publisher.name) == pub_q.lower()
-        ).first()
-        if existing_pub:
-            publisher_id = existing_pub.id
-        else:
-            pub = Publisher(name=pub_q, slug=make_unique_slug(pub_q, Publisher))
-            db.session.add(pub)
-            db.session.flush()
-            log_contribution('create', 'publisher', pub.id,
-                             new_value={'name': pub.name, 'slug': pub.slug})
-            publisher_id = pub.id
-
-    # Resolve imprint — use existing if found, else create
-    imprint_id = None
-    if imp_id_raw:
-        imprint_id = int(imp_id_raw)
-    elif imp_q:
-        existing_imp = Imprint.query.filter(
-            db.func.lower(Imprint.name) == imp_q.lower()
-        ).first()
-        if existing_imp:
-            imprint_id = existing_imp.id
-        else:
-            imp = Imprint(name=imp_q,
-                          slug=make_unique_slug(imp_q, Imprint),
-                          publisher_id=publisher_id)
-            db.session.add(imp)
-            db.session.flush()
-            log_contribution('create', 'imprint', imp.id,
-                             new_value={'name': imp.name, 'slug': imp.slug,
-                                        'publisher_id': imp.publisher_id})
-            imprint_id = imp.id
-
-    series = ComicSeries(
-        title=title,
-        series_type=series_type,
-        continuity=continuity,
-        canon_era_id=canon_era_id,
-        legends_era_id=legends_era_id,
+    values = dict(
+        title=title, series_type=series_type, volume=volume, continuity=continuity,
+        canon_era_id=canon_era_id, legends_era_id=legends_era_id,
         is_timeline_spanning=is_timeline_spanning,
-        publisher_id=publisher_id,
-        imprint_id=imprint_id,
-        start_year=int(start_year) if start_year else None,
-        end_year=int(end_year) if end_year else None,
-        synopsis=synopsis,
+        publisher_id=publisher.id, imprint_id=imprint.id if imprint else None,
+        start_year=start_year, end_year=end_year, age_rating=age_rating, synopsis=synopsis,
     )
-    db.session.add(series)
-    db.session.flush()
-    log_contribution('create', 'comic_series', series.id,
-                     new_value={
-                         'title': series.title,
-                         'series_type': series.series_type,
-                         'continuity': series.continuity,
-                         'canon_era_id': series.canon_era_id,
-                         'legends_era_id': series.legends_era_id,
-                         'is_timeline_spanning': series.is_timeline_spanning,
-                         'publisher_id': series.publisher_id,
-                         'imprint_id': series.imprint_id,
-                     })
+
+    if editing:
+        before = _series_snapshot(series)
+        for key, value in values.items():
+            setattr(series, key, value)
+        log_edit('comic_series', series.id, before, _series_snapshot(series), archivist_note=note)
+    else:
+        series = ComicSeries(**values)
+        db.session.add(series)
+        db.session.flush()
+        log_contribution('create', 'comic_series', series.id,
+                         new_value={k: to_json_safe(v) for k, v in _series_snapshot(series).items()},
+                         archivist_note=note)
     db.session.commit()
 
     return redirect(f'/comics/series/{series.id}')
+
+
+# Edit history: how each logged series field is labelled and shown
+_SERIES_FIELD_LABELS = {
+    'title': 'Title', 'series_type': 'Series Type', 'volume': 'Vol. #',
+    'continuity': 'Continuity', 'canon_era_id': 'Canon Era', 'legends_era_id': 'Legends Era',
+    'is_timeline_spanning': 'Multiple Eras', 'publisher_id': 'Publisher',
+    'imprint_id': 'Imprint', 'start_year': 'Start Year', 'end_year': 'End Year',
+    'age_rating': 'Age Rating', 'synopsis': 'Synopsis',
+}
+
+
+def _history_value(field, value):
+    if value is None or value == '':
+        return '—'
+    if field in ('canon_era_id', 'legends_era_id'):
+        era = db.session.get(Era, value)
+        return era.name if era else f'#{value}'
+    if field == 'publisher_id':
+        pub = db.session.get(Publisher, value)
+        return pub.name if pub else f'#{value}'
+    if field == 'imprint_id':
+        imp = db.session.get(Imprint, value)
+        return imp.name if imp else f'#{value}'
+    if field == 'series_type':
+        return dict(SERIES_TYPES).get(value, value)
+    if field == 'age_rating':
+        return dict(SERIES_AGE_RATINGS).get(value, value)
+    if field == 'continuity':
+        return str(value).title()
+    if field == 'is_timeline_spanning':
+        return 'Yes' if value else 'No'
+    return str(value)
+
+
+@comics_bp.route('/comics/series/<int:series_id>/history')
+def series_history(series_id):
+    series = ComicSeries.query.get_or_404(series_id)
+    entries = (ContributionLog.query
+               .filter_by(record_type='comic_series', record_id=series.id)
+               .order_by(ContributionLog.timestamp.desc(), ContributionLog.id.desc())
+               .all())
+    rows = []
+    for e in entries:
+        changes = []
+        if e.action_type == 'edit':
+            old, new = e.old_value or {}, e.new_value or {}
+            for field in new:
+                changes.append({'label': _SERIES_FIELD_LABELS.get(field, field),
+                                'old': _history_value(field, old.get(field)),
+                                'new': _history_value(field, new[field])})
+        rows.append({'when': e.timestamp, 'kind': 'created' if e.action_type == 'create' else 'edited',
+                     'changes': changes, 'note': e.archivist_note})
+    return render_template('comics/series_history.html', series=series, rows=rows)
 
 
 @comics_bp.route('/comics/series/<int:series_id>')

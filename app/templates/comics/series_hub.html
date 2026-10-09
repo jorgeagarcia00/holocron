@@ -42,23 +42,27 @@
           <span>Multiple Eras</span>
           {% endif %}
         {% endif %}
-
-        {% if series.start_year %}
-        <span class="text-gray-700">&middot;</span>
-        <span>{{ series.start_year }}{% if series.end_year %}–{{ series.end_year }}{% else %} – present{% endif %}</span>
-        {% endif %}
       </div>
 
       <div class="mt-1.5 text-sm text-gray-500">
         {{ series.publisher.name }}{% if series.imprint %} &middot; {{ series.imprint.name }}{% endif %}
+        {% if series.volume %}&middot; Vol. {{ series.volume }}{% endif %}
+        {% if series.start_year %}&middot; {{ series.start_year }}{% if series.end_year %}–{{ series.end_year }}{% else %} – present{% endif %}{% endif %}
       </div>
     </div>
 
     <div class="flex gap-2 ml-4 shrink-0">
-      <button disabled
-        class="text-xs text-gray-600 border border-gray-800 rounded px-3 py-1.5 cursor-not-allowed">
-        Edit
-      </button>
+      <details class="relative">
+        <summary class="list-none cursor-pointer select-none text-xs text-gray-300 border border-gray-700 hover:border-gray-500 rounded px-3 py-1.5 transition-colors">
+          Edit &#9662;
+        </summary>
+        <div class="absolute right-0 mt-1 w-40 bg-gray-900 border border-gray-700 rounded shadow-lg z-20 py-1 text-sm">
+          <a href="/comics/series/{{ series.id }}/edit"
+            class="block px-3 py-1.5 text-gray-300 hover:bg-gray-800 hover:text-yellow-400">Edit</a>
+          <a href="/comics/series/{{ series.id }}/history"
+            class="block px-3 py-1.5 text-gray-300 hover:bg-gray-800 hover:text-yellow-400">Edit history</a>
+        </div>
+      </details>
     </div>
   </div>
 

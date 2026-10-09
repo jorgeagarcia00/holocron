@@ -51,9 +51,9 @@ npx tailwindcss -i app/static/css/input.css -o app/static/css/output.css
 - Read docs/archive/ or docs/history/ as if they were current specs
 
 ## Current State
-- Sprint 3 (Comics UI) in progress. Built: Series form, Series Hub, Issue form (two-column, Quill synopsis), Story Breakdown (Product Credits zone + segment blocks, ADD button), autocomplete with inline creation, Canon/Legends/Both toggle (ADR 0001).
-- Not built: Issue View page (NEXT), Series/Issue Edit & Delete, Import modal, Compilation, alias entry/pages, Contribution Log display, variant_cover table.
-- Comics Build Plan (docs/Holocron-Comics-Build-Plan.md): Stages 0–2 done (PRD v0.5; Phase B #1–#5, #8, #12–#16 as applicable; Stage 2 = nullable issue #, series-type rules, volume, flexible credits, marks/log tables, duplicate rule, `log_edit`). Next: Stage 3a (Series form + Edit series). Credit and marks table shapes are still [DRAFT] in the PRD.
+- Sprint 3 (Comics UI) in progress. Built: Series form + Edit series + series Edit history (Stage 3a), Series Hub, Issue form (two-column, Quill synopsis), Story Breakdown (Product Credits zone + segment blocks, ADD button), autocomplete with inline creation, Canon/Legends/Both toggle (ADR 0001).
+- Not built: Issue View page (NEXT), Issue Edit & Delete, series Delete, Import modal, Compilation, alias entry/pages, Contribution Log display, variant_cover table.
+- Comics Build Plan (docs/Holocron-Comics-Build-Plan.md): Stages 0–2 done (PRD v0.5; Phase B #1–#5, #8, #12–#16 as applicable; Stage 2 = nullable issue #, series-type rules, volume, flexible credits, marks/log tables, duplicate rule, `log_edit`). Stage 3a done; next: Stage 3b (Issue form fixes). Credit and marks table shapes are still [DRAFT] in the PRD.
 - All entries currently in the database are test data and will be deleted.
 
 ## Conventions
