@@ -53,7 +53,7 @@ npx tailwindcss -i app/static/css/input.css -o app/static/css/output.css
 ## Current State
 - Sprint 3 (Comics UI) in progress. Built: Series form, Series Hub, Issue form (two-column, Quill synopsis), Story Breakdown (Product Credits zone + segment blocks, ADD button), autocomplete with inline creation, Canon/Legends/Both toggle (ADR 0001).
 - Not built: Issue View page (NEXT), Series/Issue Edit & Delete, Import modal, Compilation, alias entry/pages, Contribution Log display, variant_cover table.
-- Part 1 cleanup queued code changes: see docs/history/part1-cleanup-handoff.md (Phase B).
+- Comics Build Plan (docs/Holocron-Comics-Build-Plan.md): Stages 0–1 done (PRD v0.5; Phase B #1, #4, #5, #12, #13, #14, #15, #16). Next: Stage 2. Remaining Phase B items are scheduled in that plan.
 - All entries currently in the database are test data and will be deleted.
 
 ## Conventions
