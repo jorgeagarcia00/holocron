@@ -190,7 +190,6 @@ class CharacterAppearance(db.Model):
     persona_id = db.Column(db.Integer, db.ForeignKey('character_persona.id'), nullable=True)
     # appearance_type: main, supporting, cameo, vision
     appearance_type = db.Column(db.String(15), nullable=False)
-    is_uncredited = db.Column(db.Boolean, nullable=False, default=False)
     archivist_note = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
 
