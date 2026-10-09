@@ -157,6 +157,7 @@ class SegmentRelationship(db.Model):
 
 class Credit(db.Model):
     __tablename__ = 'credit'
+    __table_args__ = (db.Index('ix_credit_target', 'target_type', 'target_id'),)
 
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey('creator.id'), nullable=False)
