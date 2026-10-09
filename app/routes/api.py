@@ -332,19 +332,3 @@ def roles():
               if not r.name.lower().startswith(q_lower)
               and fuzz.WRatio(q, r.name) >= 60]
     return jsonify((starts + others)[:10])
-
-
-# ---------------------------------------------------------------------------
-# Era options for continuity-filtered dropdown (returns HTML <option> elements)
-# ---------------------------------------------------------------------------
-
-@api_bp.route('/api/eras-options')
-def eras_options():
-    continuity = request.args.get('continuity', 'both')
-    if continuity == 'both':
-        eras = Era.query.order_by(Era.continuity, Era.sort_order).all()
-    else:
-        eras = Era.query.filter_by(continuity=continuity).order_by(Era.sort_order).all()
-    return render_template('partials/era_options.html',
-                           eras=eras,
-                           show_continuity=(continuity == 'both'))

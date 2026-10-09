@@ -1,5 +1,0 @@
-<option value="">Select era…</option>
-{% for era in eras %}
-<option value="{{ era.id }}">{{ era.name }}{% if show_continuity %} ({{ era.continuity | title }}){% endif %}</option>
-{% endfor %}
-<option value="multiple">Multiple Eras</option>
