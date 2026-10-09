@@ -57,6 +57,7 @@ COMICS_ROLES = [
     ('Production', 'Collection Editor',   20),
     ('Production', 'Book Designer',       30),
     ('Production', 'Production Manager',  40),
+    ('Production', 'Senior Editor',       50),
     ('Lucasfilm',  'Lucasfilm Editor',    10),
     ('Lucasfilm',  'Lucasfilm Art Director', 20),
     ('Lucasfilm',  'Creative Director',   30),
