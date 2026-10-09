@@ -19,7 +19,21 @@
       "Bash(npx --yes tailwindcss@3 --help)",
       "PowerShell(Get-Command *)",
       "PowerShell(npm list *)",
-      "Bash(uv run *)"
+      "Bash(uv run *)",
+      "Bash(python -m flask --app run:app db current)",
+      "Bash(python run.py)",
+      "Bash(Start-Sleep -Seconds 3)",
+      "Bash(Invoke-WebRequest -Uri \"http://localhost:5000/comics/series/new\" -UseBasicParsing)",
+      "Bash(Select-Object -ExpandProperty StatusCode)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/comics/series/new)",
+      "Bash(curl -s http://localhost:5000/comics/series/new)",
+      "Bash(curl -s \"http://localhost:5000/comics/series/1/issues/new\")",
+      "Bash(python -m flask --app run:app db migrate -m \"add sort_order to role, reseed comics roles\")",
+      "Bash(python -m flask --app run:app db upgrade)",
+      "Bash(git restore *)",
+      "Bash(uv pip *)",
+      "Bash(git commit -m 'chore: convert requirements.txt to UTF-8 *)",
+      "Bash(cd *)"
     ]
   }
 }
