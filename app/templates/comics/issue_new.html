@@ -277,13 +277,13 @@
       <!-- Rail: left border visually connects all blocks -->
       <div class="ml-3 pl-5 border-l-2 border-gray-800 space-y-3">
 
-        <!-- Container Credits (collapsed by default) -->
+        <!-- Product Credits (collapsed by default) -->
         <div id="container-credits-block" class="border border-gray-700 rounded-lg">
           <div id="cc-header"
             class="flex items-center gap-3 px-4 py-2.5 bg-gray-800/50 cursor-pointer select-none rounded-t-lg rounded-b-lg"
             onclick="toggleContainerCredits()">
             <span id="cc-chevron" class="text-xs text-gray-500 shrink-0 w-3">▸</span>
-            <span class="text-xs font-semibold uppercase tracking-widest text-gray-400">Container Credits</span>
+            <span class="text-xs font-semibold uppercase tracking-widest text-gray-400">Product Credits</span>
           </div>
           <div id="cc-body" class="hidden border-t border-gray-700/60 p-4 space-y-4 rounded-b-lg">
             {% for dept in product_depts %}
@@ -473,7 +473,7 @@ let _segIdx = 0;
 // ── Shared input style ────────────────────────────────────────────
 const _inp = 'bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-yellow-400 transition-colors';
 
-// ── Container Credits toggle ──────────────────────────────────────
+// ── Product Credits toggle ──────────────────────────────────────
 function toggleContainerCredits() {
   const body = document.getElementById('cc-body');
   const chevron = document.getElementById('cc-chevron');
