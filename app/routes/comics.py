@@ -252,16 +252,25 @@ def _issue_form_context(series):
         trim_sizes=TRIM_SIZES,
         age_ratings=AGE_RATINGS,
         format_defaults=FORMAT_DEFAULTS,
+        allowed_designations={k: sorted(v) for k, v in _TYPE_ALLOWED_DESIGNATIONS.items()},
+        blocked_bindings={k: sorted(v) for k, v in _BINDING_BLOCKED.items()},
         story_depts=story_depts,
         product_depts=product_depts,
     )
 
 
+# Series type → issue types it may hold (PRD §3.2.4). The form reads this same table.
 _TYPE_ALLOWED_DESIGNATIONS = {
-    'regular_series': None,           # None = all designations allowed
+    'regular_series': {'regular_issue', 'annual', 'one_shot', 'collected_edition'},
     'one_shot':       {'one_shot'},
     'collection':     {'collected_edition'},
     'graphic_novel':  {'graphic_novel'},
+}
+
+# Series type → formats it may NOT use. Collections and graphic novels are never "Comic".
+_BINDING_BLOCKED = {
+    'collection':    {'comic'},
+    'graphic_novel': {'comic'},
 }
 
 
@@ -507,10 +516,6 @@ def _handle_issue_create(series):
             )
 
     # Validate format is allowed for this series type
-    _BINDING_BLOCKED = {
-        'collection':    {'comic'},
-        'graphic_novel': {'comic'},
-    }
     blocked_bindings = _BINDING_BLOCKED.get(series.series_type, set())
     if physical_binding in blocked_bindings:
         errors.append(
