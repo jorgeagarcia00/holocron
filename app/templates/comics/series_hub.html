@@ -132,7 +132,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in regular_issues %}
-        {{ issue_card(issue, series.title ~ ' #' ~ issue.issue_number) }}
+        {{ issue_card(issue, issue | issue_label) }}
       {% endfor %}
     </div>
   </div>
@@ -146,7 +146,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in annuals %}
-        {{ issue_card(issue, series.title ~ ' ' ~ issue.issue_number) }}
+        {{ issue_card(issue, issue | issue_label) }}
       {% endfor %}
     </div>
   </div>
@@ -160,12 +160,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in one_shots %}
-        {% if issue.issue_number %}
-          {% set label = series.title ~ ' — ' ~ issue.issue_number %}
-        {% else %}
-          {% set label = series.title %}
-        {% endif %}
-        {{ issue_card(issue, label) }}
+        {{ issue_card(issue, issue | issue_label) }}
       {% endfor %}
     </div>
   </div>
@@ -179,20 +174,7 @@
     </h3>
     <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
       {% for issue in collected %}
-        {%- if issue.issue_number %}
-          {%- set suffix = ' TP' if issue.physical_binding == 'paperback'
-                      else ' HC' if issue.physical_binding == 'hardcover'
-                      else ' (Digital)' if issue.physical_binding == 'digital'
-                      else '' %}
-          {%- set label = series.title ~ ' — ' ~ issue.issue_number ~ suffix %}
-        {%- else %}
-          {%- set suffix = ' TP' if issue.physical_binding == 'paperback'
-                      else ' HC' if issue.physical_binding == 'hardcover'
-                      else ' (Digital)' if issue.physical_binding == 'digital'
-                      else '' %}
-          {%- set label = series.title ~ suffix %}
-        {%- endif %}
-        {{ issue_card(issue, label) }}
+        {{ issue_card(issue, issue | issue_label) }}
       {% endfor %}
     </div>
   </div>

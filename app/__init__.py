@@ -25,6 +25,13 @@ def create_app():
     flask_app.add_template_filter(format_date, 'fmt_date')
     flask_app.add_template_filter(format_cover_date, 'fmt_cover_date')
 
+    from app.utils import issue_display_title
+
+    def _issue_label(issue):
+        return issue_display_title(issue.series.title, issue.designation, issue.issue_number,
+                                   issue.issue_title, issue.physical_binding)
+    flask_app.add_template_filter(_issue_label, 'issue_label')
+
     from app.backup import register_backup_command
     register_backup_command(flask_app)
 

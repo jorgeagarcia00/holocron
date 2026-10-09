@@ -52,3 +52,25 @@ def format_cover_date(value):
     if not value:
         return ''
     return f'{value.strftime("%b")} {value.year}'
+
+
+_BINDING_SUFFIX = {'paperback': ' TPB', 'hardcover': ' HC', 'digital': ' (Digital)'}
+
+
+def issue_display_title(series_title, designation, issue_number, issue_title, physical_binding):
+    """Full display name of an issue, generated and never stored (PRD §3.2.4).
+
+    Regular Issue: "Series #1" · Annual: "Series 2025 Annual" · One-Shot / Graphic Novel:
+    "Series — Title" · Collected Edition: "Series — Title TPB" (HC, "(Digital)").
+    """
+    title = (issue_title or '').strip()
+    if designation == 'regular_issue':
+        number = (issue_number or '').strip()
+        return f'{series_title} #{number}' if number else series_title
+    if designation == 'annual':
+        return f'{series_title} {title}' if title else series_title
+    if designation == 'collected_edition':
+        suffix = _BINDING_SUFFIX.get(physical_binding, '')
+        base = f'{series_title} — {title}' if title else series_title
+        return base + suffix
+    return f'{series_title} — {title}' if title else series_title

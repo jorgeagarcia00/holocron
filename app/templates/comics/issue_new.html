@@ -127,6 +127,9 @@
             <label class="fl-label"><span id="issue-number-label">Issue #</span> <span id="issue-number-req" class="fl-req">*</span></label>
             <input type="text" id="issue_number" name="issue_number" value="{{ form.issue_number or '' }}"
               placeholder="1" class="fl-input" required autofocus>
+            <p id="issue-number-hint" class="hidden text-xs text-gray-500 mt-1">
+              Leave blank if there is no subtitle. Never type TPB or HC &mdash; they are added automatically.
+            </p>
           </div>
         </div>
 
@@ -415,6 +418,7 @@ const BINDING_ALLOWED = {
 const ISSUE_LABEL = { regular_issue: 'Issue #', annual: 'Annual', one_shot: 'Title', collected_edition: 'Title', graphic_novel: 'Title' };
 const ISSUE_PLACEHOLDER = { regular_issue: '1', annual: '2025 Annual', one_shot: '', collected_edition: '', graphic_novel: '' };
 const ISSUE_REQUIRED = ['regular_issue', 'annual', 'graphic_novel'];
+const HINT_TYPES = ['one_shot', 'collected_edition'];
 function updateIssueNumberField(type) {
   document.getElementById('issue-number-label').textContent = ISSUE_LABEL[type] || 'Issue #';
   const input = document.getElementById('issue_number');
@@ -424,6 +428,7 @@ function updateIssueNumberField(type) {
   span.textContent = req ? '*' : '';
   span.className = req ? 'fl-req' : '';
   req ? input.setAttribute('required', '') : input.removeAttribute('required');
+  document.getElementById('issue-number-hint').classList.toggle('hidden', !HINT_TYPES.includes(type));
 }
 updateIssueNumberField(document.getElementById('designation').value);
 

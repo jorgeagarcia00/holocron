@@ -440,7 +440,7 @@ def _handle_issue_create(series):
     f = request.form
     errors = []
 
-    issue_number     = f.get('issue_number', '').strip().lstrip('#')
+    typed_text       = f.get('issue_number', '').strip()
     release_date_s   = f.get('release_date', '').strip()
     cover_date_s     = f.get('cover_date', '').strip()
     designation      = f.get('designation', '').strip()
@@ -467,11 +467,25 @@ def _handle_issue_create(series):
     valid_designations = {v for v, _ in ISSUE_DESIGNATIONS}
     valid_bindings     = {v for v, _ in PHYSICAL_BINDINGS}
 
-    # issue_number optional for Collected Edition and One-Shot (series title suffices)
-    optional_number = {'collected_edition', 'one_shot'}
-    if not issue_number and designation not in optional_number:
-        label = 'Issue #' if designation == 'regular_issue' else 'Title'
+    # The shared Issue # / Title box: a number for Regular Issues only; for every other
+    # type the text is the title and issue_number stays empty (PRD §3.2.4).
+    if designation == 'regular_issue':
+        issue_number = typed_text.lstrip('#').strip() or None
+        issue_title  = None
+    else:
+        issue_number = None
+        issue_title  = typed_text or None
+
+    # Collected Editions and One-Shots may have no subtitle
+    optional_text = {'collected_edition', 'one_shot'}
+    if designation in valid_designations and not typed_text and designation not in optional_text:
+        label = 'Issue #' if designation == 'regular_issue' else (
+            'Annual' if designation == 'annual' else 'Title')
         errors.append(f'{label} is required.')
+    if issue_number and len(issue_number) > 20:
+        errors.append('Issue # is too long (20 characters at most).')
+    if issue_title and len(issue_title) > 255:
+        errors.append('Title is too long (255 characters at most).')
     if not release_date_s:
         errors.append('Release Date is required.')
     if designation not in valid_designations:
@@ -544,6 +558,7 @@ def _handle_issue_create(series):
     issue = ComicIssue(
         series_id        = series.id,
         issue_number     = issue_number,
+        issue_title      = issue_title,
         release_date     = release_date,
         cover_date       = cover_date,
         designation      = designation,
@@ -575,6 +590,7 @@ def _handle_issue_create(series):
                      new_value={
                          'series_id':        issue.series_id,
                          'issue_number':     issue.issue_number,
+                         'issue_title':      issue.issue_title,
                          'release_date':     issue.release_date.isoformat(),
                          'designation':      issue.designation,
                          'physical_binding': issue.physical_binding,

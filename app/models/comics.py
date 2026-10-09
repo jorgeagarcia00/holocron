@@ -51,7 +51,10 @@ class ComicIssue(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     series_id = db.Column(db.Integer, db.ForeignKey('comic_series.id'), nullable=False)
-    issue_number = db.Column(db.String(20), nullable=False)  # handles #0, #½, #1.AU
+    # issue_number is used by regular issues only (stored without "#"; handles 0, ½, 1.AU).
+    # Annuals, one-shots, collected editions and graphic novels keep their text in
+    # issue_title and leave issue_number empty (PRD §3.2.4).
+    issue_number = db.Column(db.String(20), nullable=True)
     issue_title = db.Column(db.String(255), nullable=True)
     release_date = db.Column(db.Date, nullable=False)
     cover_date = db.Column(db.Date, nullable=True)
