@@ -12,7 +12,9 @@ from app.models.comics import (
     CharacterAppearance, ComicIssue, ComicSeries, ComicSegment, Credit, ExternalLink,
 )
 from app.models.preferences import UserPreferences
-from app.models.reference import Character, CharacterPersona, Creator, Department, Era, Imprint, Publisher, Role
+from app.models.reference import (
+    Character, CharacterPersona, Creator, CreatorAlias, Department, Era, Imprint, Publisher, Role,
+)
 from app.utils import make_unique_slug, natural_issue_key
 
 comics_bp = Blueprint('comics', __name__)
@@ -348,10 +350,46 @@ def _resolve_character(character_id, character_q):
     return c
 
 
+def _as_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _iter_credit_rows(story_data):
+    """Every credit row in a Story Breakdown payload (product and story scope)."""
+    yield from story_data.get('issue_credits', [])
+    for seg in story_data.get('segments', []):
+        yield from seg.get('credits', [])
+
+
+def _validate_credit_attributes(story_data):
+    """Check the "credited as" alias on each credit row before anything is saved.
+
+    An alias must belong to the same person as the credit, and an Uncredited credit
+    cannot also say "credited as" a name.
+    """
+    errors = []
+    for row in _iter_credit_rows(story_data):
+        if not row.get('alias_id'):
+            continue
+        alias_id = _as_int(row.get('alias_id'))
+        if row.get('is_uncredited'):
+            errors.append('A credit cannot be both Uncredited and "credited as" a name.')
+            continue
+        alias = db.session.get(CreatorAlias, alias_id) if alias_id else None
+        creator_id = _as_int(row.get('creator_id'))
+        if alias is None or not creator_id or alias.canonical_creator_id != creator_id:
+            errors.append('"Credited as" must be one of the credited person\'s saved names.')
+    return errors
+
+
 def _add_credit(data, creator, dept_id, role_name, target_type, target_id, scope):
     """Create one credit (and its log entry) from a Story Breakdown credit row."""
     note = (data.get('note') or '').strip() or None
     credit = Credit(creator_id=creator.id,
+                    alias_id=_as_int(data.get('alias_id')),
                     target_type=target_type, target_id=target_id,
                     department_id=dept_id, role_name=role_name, scope=scope,
                     is_uncredited=bool(data.get('is_uncredited', False)),
@@ -360,6 +398,7 @@ def _add_credit(data, creator, dept_id, role_name, target_type, target_id, scope
     db.session.flush()
     log_contribution('create', 'credit', credit.id,
                      new_value={'creator_id': credit.creator_id,
+                                'alias_id': credit.alias_id,
                                 'target_type': credit.target_type,
                                 'target_id': credit.target_id,
                                 'department_id': credit.department_id,
@@ -510,6 +549,8 @@ def _handle_issue_create(series):
     # Segment count — strict server-side enforcement
     if not story_data or not story_data.get('segments'):
         errors.append('At least one segment is required.')
+    elif isinstance(story_data, dict):
+        errors.extend(_validate_credit_attributes(story_data))
 
     # Validate designation is allowed for this series type
     if designation in valid_designations:
