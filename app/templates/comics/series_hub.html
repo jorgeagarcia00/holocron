@@ -63,9 +63,7 @@
   </div>
 
   {% if series.synopsis %}
-  <div class="text-sm text-gray-400 mb-8 max-w-2xl leading-relaxed prose-invert">
-    {{ series.synopsis | safe }}
-  </div>
+  <div class="text-sm text-gray-400 mb-8 max-w-2xl leading-relaxed whitespace-pre-line">{{ series.synopsis | trim }}</div>
   {% endif %}
 
   <!-- Issues section -->
